@@ -1,14 +1,28 @@
-// src/App.jsx
-// Main application router - handles all pages
+// src/App.jsx - UPDATED with Landing Page
+// Shows landing page for first-time visitors, then remembers them
 
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from './lib/supabase'
+import LandingPage from './pages/LandingPage'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 
-// Protected Route component
-// Redirects to login if not authenticated
+// Check if user has visited before
+const hasVisitedBefore = () => {
+  return localStorage.getItem('hasVisitedBefore') === 'true'
+}
+
+// Landing Route - shows landing page ONLY for first-time visitors
+const LandingRoute = () => {
+  // If they've visited before, send them to login
+  if (hasVisitedBefore()) {
+    return <Navigate to="/login" replace />
+  }
+  return <LandingPage />
+}
+
+// Protected Route - requires login
 const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />
@@ -16,8 +30,7 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
-// Public Route component
-// Redirects to dashboard if already authenticated
+// Public Route - if already logged in, go to dashboard
 const PublicRoute = ({ children }) => {
   if (isAuthenticated()) {
     return <Navigate to="/dashboard" replace />
@@ -29,7 +42,10 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes - accessible without login */}
+        {/* Landing page - only for first-time visitors */}
+        <Route path="/" element={<LandingRoute />} />
+        
+        {/* Auth pages */}
         <Route 
           path="/login" 
           element={
@@ -47,7 +63,7 @@ function App() {
           } 
         />
         
-        {/* Protected Routes - require login */}
+        {/* Dashboard - requires login */}
         <Route 
           path="/dashboard" 
           element={
@@ -57,17 +73,7 @@ function App() {
           } 
         />
         
-        {/* Redirect root to dashboard if logged in, otherwise login */}
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated() 
-              ? <Navigate to="/dashboard" replace />
-              : <Navigate to="/login" replace />
-          } 
-        />
-        
-        {/* Catch all - redirect to home */}
+        {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
