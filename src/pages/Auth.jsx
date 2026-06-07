@@ -1,5 +1,5 @@
 // src/pages/Auth.jsx
-// This file handles business signup and login
+// Fixed version with better error handling and email placeholder
 
 import React, { useState } from 'react'
 
@@ -21,6 +21,9 @@ export default function Auth() {
   // Error state
   const [error, setError] = useState('')
 
+  // Get API URL from environment
+  const API_URL = import.meta.env.VITE_API_URL
+
   // Handle Login
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -28,7 +31,7 @@ export default function Auth() {
     setError('')
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -53,7 +56,12 @@ export default function Auth() {
       window.location.href = '/dashboard'
       
     } catch (err) {
-      setError(err.message)
+      console.error('Login error:', err)
+      if (err.message.includes('Failed to fetch')) {
+        setError('Cannot connect to server. Please check your internet and try again.')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -79,7 +87,7 @@ export default function Auth() {
       return
     }
     
-    // Validate WhatsApp number format (basic)
+    // Validate WhatsApp number format
     const whatsappRegex = /^\+\d{10,15}$/
     if (!whatsappRegex.test(whatsappPhone)) {
       setError('WhatsApp number must include country code (e.g., +1234567890)')
@@ -88,7 +96,7 @@ export default function Auth() {
     }
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/signup`, {
+      const response = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -115,7 +123,14 @@ export default function Auth() {
       window.location.href = '/dashboard'
       
     } catch (err) {
-      setError(err.message)
+      console.error('Signup error:', err)
+      if (err.message.includes('Failed to fetch')) {
+        setError('Cannot connect to server. Please check your internet and try again.')
+      } else if (err.message.includes('JSON')) {
+        setError('Server error. Please make sure Supabase Edge Functions are deployed.')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -152,18 +167,17 @@ export default function Auth() {
         {/* Login Form */}
         {isLogin ? (
           <form onSubmit={handleLogin} className="space-y-4">
-           <div>
-  <label className="block text-zinc-400 text-sm mb-2">Email Address</label>
-  <input
-    type="email"
-    value={signupEmail}
-    onChange={(e) => setSignupEmail(e.target.value)}
-    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white focus:border-neonBlue outline-none transition"
-    placeholder="any@email.com (Gmail, Yahoo, or business email)"
-    required
-  />
-  <p className="text-zinc-500 text-xs mt-1">Any email works. We'll send login links and receipts here.</p>
-</div>
+            <div>
+              <label className="block text-zinc-400 text-sm mb-2">Email Address</label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white focus:border-neonBlue outline-none transition"
+                placeholder="any@email.com"
+                required
+              />
+            </div>
             
             <div>
               <label className="block text-zinc-400 text-sm mb-2">Password</label>
@@ -218,9 +232,10 @@ export default function Auth() {
                 value={signupEmail}
                 onChange={(e) => setSignupEmail(e.target.value)}
                 className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white focus:border-neonBlue outline-none transition"
-                placeholder="you@business.com"
+                placeholder="any@email.com (Gmail, Yahoo, or business email)"
                 required
               />
+              <p className="text-zinc-500 text-xs mt-1">Any email works. We'll send login links and receipts here.</p>
             </div>
             
             <div>
