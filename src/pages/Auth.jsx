@@ -152,17 +152,18 @@ export default function Auth() {
         {/* Login Form */}
         {isLogin ? (
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-zinc-400 text-sm mb-2">Email Address</label>
-              <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white focus:border-neonBlue outline-none transition"
-                placeholder="you@business.com"
-                required
-              />
-            </div>
+           <div>
+  <label className="block text-zinc-400 text-sm mb-2">Email Address</label>
+  <input
+    type="email"
+    value={signupEmail}
+    onChange={(e) => setSignupEmail(e.target.value)}
+    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white focus:border-neonBlue outline-none transition"
+    placeholder="any@email.com (Gmail, Yahoo, or business email)"
+    required
+  />
+  <p className="text-zinc-500 text-xs mt-1">Any email works. We'll send login links and receipts here.</p>
+</div>
             
             <div>
               <label className="block text-zinc-400 text-sm mb-2">Password</label>
