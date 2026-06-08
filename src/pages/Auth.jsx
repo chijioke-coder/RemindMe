@@ -1,5 +1,5 @@
 // src/pages/Auth.jsx
-// Fixed version with better error handling and email placeholder
+// FULLY UPDATED - Includes apikey headers for Supabase Edge Functions
 
 import React, { useState } from 'react'
 
@@ -23,6 +23,7 @@ export default function Auth() {
 
   // Get API URL from environment
   const API_URL = import.meta.env.VITE_API_URL
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
   // Handle Login
   const handleLogin = async (e) => {
@@ -33,7 +34,10 @@ export default function Auth() {
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY
+        },
         body: JSON.stringify({
           email: loginEmail,
           password: loginPassword
@@ -98,7 +102,10 @@ export default function Auth() {
     try {
       const response = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY
+        },
         body: JSON.stringify({
           business_name: businessName,
           email: signupEmail,
