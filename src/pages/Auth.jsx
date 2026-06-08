@@ -1,5 +1,5 @@
 // src/pages/Auth.jsx
-// FULLY UPDATED - Includes apikey headers for Supabase Edge Functions
+// FIXED - Uses Authorization header instead of apikey
 
 import React, { useState } from 'react'
 
@@ -36,7 +36,7 @@ export default function Auth() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           email: loginEmail,
@@ -104,7 +104,7 @@ export default function Auth() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           business_name: businessName,
