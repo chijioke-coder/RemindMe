@@ -1,6 +1,4 @@
-// src/App.jsx - UPDATED with Landing Page
-// Shows landing page for first-time visitors, then remembers them
-
+// src/App.jsx
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from './lib/supabase'
@@ -15,7 +13,6 @@ const hasVisitedBefore = () => {
 
 // Landing Route - shows landing page ONLY for first-time visitors
 const LandingRoute = () => {
-  // If they've visited before, send them to login
   if (hasVisitedBefore()) {
     return <Navigate to="/login" replace />
   }
@@ -42,38 +39,10 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Landing page - only for first-time visitors */}
         <Route path="/" element={<LandingRoute />} />
-        
-        {/* Auth pages */}
-        <Route 
-          path="/login" 
-          element={
-            <PublicRoute>
-              <Auth />
-            </PublicRoute>
-          } 
-        />
-        <Route 
-          path="/signup" 
-          element={
-            <PublicRoute>
-              <Auth />
-            </PublicRoute>
-          } 
-        />
-        
-        {/* Dashboard - requires login */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Catch all */}
+        <Route path="/login" element={<PublicRoute><Auth /></PublicRoute>} />
+        <Route path="/signup" element={<PublicRoute><Auth /></PublicRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
