@@ -1,8 +1,7 @@
 // src/pages/Auth.jsx
-// Full version with signup, login, and debug button for Edge Function testing
+// Complete working version – uses Authorization header (not apikey)
 
 import React, { useState } from 'react'
-import { supabase } from '../lib/supabase'
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true)
@@ -16,15 +15,14 @@ export default function Auth() {
   const [businessName, setBusinessName] = useState('')
   const [whatsappPhone, setWhatsappPhone] = useState('')
 
-  // Environment variables for Edge Function testing
+  // Environment variables
   const API_URL = import.meta.env.VITE_API_URL
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
   // ============================================================
-  // DIRECT SUPABASE AUTH (fallback / alternative)
+  // SIGNUP - Edge Function with Authorization header
   // ============================================================
-
-  const handleSignupDirect = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -34,85 +32,13 @@ export default function Auth() {
       setLoading(false)
       return
     }
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
       setLoading(false)
       return
     }
 
-    try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { business_name: businessName, whatsapp_phone: whatsappPhone }
-        }
-      })
-      if (authError) throw authError
-      if (!authData.user) throw new Error('User creation failed')
-
-      // Insert into businesses table
-      const { error: dbError } = await supabase.from('businesses').insert({
-        id: authData.user.id,
-        business_name: businessName,
-        email,
-        whatsapp_phone: whatsappPhone,
-        subscription_status: 'trial',
-        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      })
-      if (dbError) console.error('Business insert error:', dbError)
-
-      sessionStorage.setItem('business_session', JSON.stringify({
-        business: { id: authData.user.id, business_name: businessName, email },
-        session_token: authData.session?.access_token
-      }))
-      window.location.href = '/dashboard'
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLoginDirect = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-      const { data: business } = await supabase.from('businesses').select('*').eq('id', data.user.id).single()
-      sessionStorage.setItem('business_session', JSON.stringify({
-        business: business || { id: data.user.id, email },
-        session_token: data.session.access_token
-      }))
-      window.location.href = '/dashboard'
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ============================================================
-  // EDGE FUNCTION AUTH (the method you want to debug)
-  // ============================================================
-
-  const handleSignupEdge = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      setLoading(false)
-      return
-    }
     const whatsappRegex = /^\+\d{10,15}$/
     if (!whatsappRegex.test(whatsappPhone)) {
       setError('WhatsApp number must include country code (e.g., +1234567890)')
@@ -125,22 +51,29 @@ export default function Auth() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           business_name: businessName,
-          email,
-          password,
+          email: email,
+          password: password,
           whatsapp_phone: whatsappPhone
         })
       })
+
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Signup failed')
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Signup failed')
+      }
+
       sessionStorage.setItem('business_session', JSON.stringify({
         business: data.business,
         session_token: data.session_token
       }))
+
       window.location.href = '/dashboard'
+
     } catch (err) {
       setError(err.message)
     } finally {
@@ -148,26 +81,40 @@ export default function Auth() {
     }
   }
 
-  const handleLoginEdge = async (e) => {
+  // ============================================================
+  // LOGIN - Edge Function with Authorization header
+  // ============================================================
+  const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
       })
+
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Login failed')
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed')
+      }
+
       sessionStorage.setItem('business_session', JSON.stringify({
         business: data.business,
         session_token: data.session_token
       }))
+
       window.location.href = '/dashboard'
+
     } catch (err) {
       setError(err.message)
     } finally {
@@ -175,10 +122,31 @@ export default function Auth() {
     }
   }
 
-  // Choose which method to use (set to true for Edge Function, false for direct Supabase)
-  const USE_EDGE_FUNCTION = true   // <-- Change to false to use direct Supabase auth
-
-  const handleSubmit = USE_EDGE_FUNCTION ? (isLogin ? handleLoginEdge : handleSignupEdge) : (isLogin ? handleLoginDirect : handleSignupDirect)
+  // ============================================================
+  // DEBUG BUTTON - Tests Edge Function directly
+  // ============================================================
+  const testEdgeFunction = async () => {
+    const url = `${API_URL}/auth/signup`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          business_name: 'DebugTest',
+          email: 'debug@test.com',
+          password: '123456',
+          whatsapp_phone: '+1234567890'
+        })
+      })
+      const text = await res.text()
+      alert(`Status: ${res.status}\nResponse: ${text}\n\nURL: ${url}`)
+    } catch (err) {
+      alert(`Fetch error: ${err.message}\n\nURL: ${url}\n\nAPI_URL: ${API_URL || 'undefined'}\n\nANON_KEY present: ${SUPABASE_ANON_KEY ? 'Yes' : 'No'}`)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -203,37 +171,16 @@ export default function Auth() {
           </div>
         )}
 
-        {/* DEBUG BUTTON - Test Edge Function directly */}
+        {/* DEBUG BUTTON */}
         <button
-          onClick={async () => {
-            const url = `${API_URL}/auth/signup`
-            try {
-              const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'apikey': SUPABASE_ANON_KEY
-                },
-                body: JSON.stringify({
-                  business_name: 'DebugTest',
-                  email: 'debug@test.com',
-                  password: '123456',
-                  whatsapp_phone: '+1234567890'
-                })
-              })
-              const text = await res.text()
-              alert(`Status: ${res.status}\nResponse: ${text}\n\nURL: ${url}`)
-            } catch (err) {
-              alert(`Fetch error: ${err.message}\n\nURL: ${url}\n\nAPI_URL env: ${API_URL || 'undefined'}\n\nANON_KEY present: ${SUPABASE_ANON_KEY ? 'Yes' : 'No'}`)
-            }
-          }}
+          onClick={testEdgeFunction}
           className="mb-6 w-full bg-yellow-500 text-black py-2 rounded-lg font-bold text-sm"
         >
           🧪 Test Edge Function
         </button>
 
         {isLogin ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-zinc-400 text-sm mb-2">Email</label>
               <input
@@ -265,7 +212,7 @@ export default function Auth() {
             </p>
           </form>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label className="block text-zinc-400 text-sm mb-2">Business Name</label>
               <input
