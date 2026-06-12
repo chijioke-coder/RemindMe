@@ -1,52 +1,73 @@
 // src/pages/Auth.jsx
-// Fixed: cleared fields on toggle, password visibility, email placeholder, and routing support
+// Fixed: separate state, password visibility, better UX
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // Form state
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [businessName, setBusinessName] = useState('')
-  const [whatsappPhone, setWhatsappPhone] = useState('')
+  // Separate state for login and signup forms
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
 
-  // Clear form when switching between login and signup
-  useEffect(() => {
-    setEmail('')
-    setPassword('')
-    setConfirmPassword('')
-    setBusinessName('')
-    setWhatsappPhone('')
-    setError('')
-  }, [isLogin])
+  const [signupBusinessName, setSignupBusinessName] = useState('')
+  const [signupEmail, setSignupEmail] = useState('')
+  const [signupWhatsapp, setSignupWhatsapp] = useState('')
+  const [signupPassword, setSignupPassword] = useState('')
+  const [signupConfirm, setSignupConfirm] = useState('')
 
   const API_URL = import.meta.env.VITE_API_URL
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+  // Handle Login
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Login failed')
+      sessionStorage.setItem('business_session', JSON.stringify({
+        business: data.business,
+        session_token: data.session_token
+      }))
+      window.location.href = '/dashboard'
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Signup
   const handleSignup = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    if (password !== confirmPassword) {
+    if (signupPassword !== signupConfirm) {
       setError('Passwords do not match')
       setLoading(false)
       return
     }
-    if (password.length < 6) {
+    if (signupPassword.length < 6) {
       setError('Password must be at least 6 characters')
       setLoading(false)
       return
     }
     const whatsappRegex = /^\+\d{10,15}$/
-    if (!whatsappRegex.test(whatsappPhone)) {
+    if (!whatsappRegex.test(signupWhatsapp)) {
       setError('WhatsApp number must include country code (e.g., +1234567890)')
       setLoading(false)
       return
@@ -60,10 +81,10 @@ export default function Auth() {
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
-          business_name: businessName,
-          email,
-          password,
-          whatsapp_phone: whatsappPhone
+          business_name: signupBusinessName,
+          email: signupEmail,
+          password: signupPassword,
+          whatsapp_phone: signupWhatsapp
         })
       })
       const data = await response.json()
@@ -80,55 +101,8 @@ export default function Auth() {
     }
   }
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({ email, password })
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Login failed')
-      sessionStorage.setItem('business_session', JSON.stringify({
-        business: data.business,
-        session_token: data.session_token
-      }))
-      window.location.href = '/dashboard'
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const testEdgeFunction = async () => {
-    const url = `${API_URL}/auth/signup`
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          business_name: 'DebugTest',
-          email: 'debug@test.com',
-          password: '123456',
-          whatsapp_phone: '+1234567890'
-        })
-      })
-      const text = await res.text()
-      alert(`Status: ${res.status}\nResponse: ${text}`)
-    } catch (err) {
-      alert(`Fetch error: ${err.message}`)
-    }
-  }
+  // Switch between login/signup – clear only the form you're leaving? Actually leave as is, but separate states ensure no overlap.
+  // No need to clear anything because states are separate.
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -153,41 +127,38 @@ export default function Auth() {
           </div>
         )}
 
-        <button
-          onClick={testEdgeFunction}
-          className="mb-6 w-full bg-yellow-500 text-black py-2 rounded-lg font-bold text-sm"
-        >
-          🧪 Test Edge Function
-        </button>
-
         {isLogin ? (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-zinc-400 text-sm mb-2">Email</label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
                 className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white"
+                placeholder="any@email.com (e.g., hello@company.com)"
                 required
               />
+              <p className="text-zinc-500 text-xs mt-1">Any valid email works. We'll send login links and receipts.</p>
             </div>
-            <div className="relative">
+            <div>
               <label className="block text-zinc-400 text-sm mb-2">Password</label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 bottom-3 text-zinc-400"
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={loading} className="w-full bg-neonBlue text-black font-bold py-3 rounded-lg">
               {loading ? 'Signing in...' : 'Sign In'}
@@ -205,68 +176,67 @@ export default function Auth() {
               <label className="block text-zinc-400 text-sm mb-2">Business Name</label>
               <input
                 type="text"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
+                value={signupBusinessName}
+                onChange={(e) => setSignupBusinessName(e.target.value)}
                 className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white"
+                placeholder="Your Salon, Clinic, or Spa"
                 required
               />
             </div>
             <div>
-              <label className="block text-zinc-400 text-sm mb-2">Email Address</label>
+              <label className="block text-zinc-400 text-sm mb-2">Email</label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={signupEmail}
+                onChange={(e) => setSignupEmail(e.target.value)}
                 className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white"
-                placeholder="any@email.com (e.g., name@company.com)"
+                placeholder="any@email.com (e.g., hello@company.com)"
                 required
               />
-              <p className="text-zinc-500 text-xs mt-1">Any valid email works. We'll send login links and receipts here.</p>
+              <p className="text-zinc-500 text-xs mt-1">Any valid email works. We'll send login links and receipts.</p>
             </div>
             <div>
               <label className="block text-zinc-400 text-sm mb-2">WhatsApp Number (with country code)</label>
               <input
                 type="tel"
-                value={whatsappPhone}
-                onChange={(e) => setWhatsappPhone(e.target.value)}
+                value={signupWhatsapp}
+                onChange={(e) => setSignupWhatsapp(e.target.value)}
                 className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white"
                 placeholder="+1234567890"
                 required
               />
+              <p className="text-zinc-500 text-xs mt-1">Include country code, e.g., +1 for US, +44 for UK</p>
             </div>
-            <div className="relative">
+            <div>
               <label className="block text-zinc-400 text-sm mb-2">Password</label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 bottom-3 text-zinc-400"
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
-            <div className="relative">
+            <div>
               <label className="block text-zinc-400 text-sm mb-2">Confirm Password</label>
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 bottom-3 text-zinc-400"
-              >
-                {showConfirmPassword ? '🙈' : '👁️'}
-              </button>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={signupConfirm}
+                  onChange={(e) => setSignupConfirm(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white pr-10"
+                  required
+                />
+              </div>
             </div>
             <button type="submit" disabled={loading} className="w-full bg-neonBlue text-black font-bold py-3 rounded-lg">
               {loading ? 'Creating account...' : 'Start 14-Day Free Trial'}
