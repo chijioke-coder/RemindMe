@@ -6,20 +6,20 @@ import LandingPage from './pages/LandingPage'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 
-// Check if user has visited before
 const hasVisitedBefore = () => {
   return localStorage.getItem('hasVisitedBefore') === 'true'
 }
 
-// Landing Route - shows landing page ONLY for first-time visitors
 const LandingRoute = () => {
-  if (hasVisitedBefore()) {
+  if (hasVisitedBefore() && !isAuthenticated()) {
     return <Navigate to="/login" replace />
+  }
+  if (isAuthenticated()) {
+    return <Navigate to="/dashboard" replace />
   }
   return <LandingPage />
 }
 
-// Protected Route - requires login
 const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />
@@ -27,7 +27,6 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
-// Public Route - if already logged in, go to dashboard
 const PublicRoute = ({ children }) => {
   if (isAuthenticated()) {
     return <Navigate to="/dashboard" replace />
