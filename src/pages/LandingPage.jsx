@@ -8,9 +8,7 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Set hasVisited flag in localStorage when someone visits
-  useEffect(() => {
-    localStorage.setItem('hasVisitedBefore', 'true')
-  }, [])
+  
 
   return (
     <div className="min-h-screen bg-black">
