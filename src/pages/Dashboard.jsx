@@ -332,7 +332,7 @@ export default function Dashboard() {
                       <td className="p-4 text-white">{apt.customers?.customer_name || 'Unknown'}</td>
                       <td className="p-4 text-zinc-400">{apt.customers?.customer_phone || 'N/A'}</td>
                       <td className="p-4 text-white">{formatDate(apt.appointment_date)}</td>
-                      <td className="p-4 text-white">{apt.appointment_time}</td>
+                      <td className="p-4 text-white">{apt.appointment_time.slice(0, 5)}</td>
                       <td className="p-4">{getStatusBadge(apt)}</td>
                       <td className="p-4">
                         <div className="flex gap-2">
