@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-// This is the main dashboard where businesses manage appointments
+// Fixed version with better error handling and logging
 
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [appointments, setAppointments] = useState([])
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
@@ -23,122 +24,130 @@ export default function Dashboard() {
     no_shows: 0
   })
 
-  // Load business data
+  // Load all data
   useEffect(() => {
-    loadBusinessData()
-    loadAppointments()
-    loadCustomers()
+    loadAllData()
   }, [])
 
-  const loadBusinessData = async () => {
-    const session = sessionStorage.getItem('business_session')
-    if (!session) {
-      window.location.href = '/login'
-      return
-    }
+  const loadAllData = async () => {
+    setLoading(true)
+    setError(null)
     
-    const { business: businessData } = JSON.parse(session)
-    setBusiness(businessData)
+    try {
+      const session = sessionStorage.getItem('business_session')
+      if (!session) {
+        window.location.href = '/login'
+        return
+      }
+      
+      const { business: businessData } = JSON.parse(session)
+      setBusiness(businessData)
+      
+      // Load appointments and customers in parallel
+      await Promise.all([
+        loadAppointments(businessData.id),
+        loadCustomers(businessData.id)
+      ])
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const loadAppointments = async () => {
-    setLoading(true)
-    const session = sessionStorage.getItem('business_session')
-    const { business: businessData } = JSON.parse(session)
-    
-    const { data, error } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        customers (
-          customer_name,
-          customer_phone
-        )
-      `)
-      .eq('business_id', businessData.id)
-      .order('appointment_date', { ascending: true })
-    
-    if (!error && data) {
-      setAppointments(data)
+  const loadAppointments = async (businessId) => {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          customers (
+            customer_name,
+            customer_phone
+          )
+        `)
+        .eq('business_id', businessId)
+        .order('appointment_date', { ascending: true })
       
-      // Calculate stats
+      if (error) throw error
+      
+      setAppointments(data || [])
+      
       const total = data.length
       const confirmed = data.filter(a => a.customer_confirmed).length
       const canceled = data.filter(a => a.customer_canceled).length
       const noShows = data.filter(a => a.no_show).length
       
-      setStats({
-        total_appointments: total,
-        confirmed,
-        canceled,
-        no_shows: noShows
-      })
+      setStats({ total_appointments: total, confirmed, canceled, no_shows: noShows })
+    } catch (err) {
+      console.error('loadAppointments error:', err)
+      setError(`Failed to load appointments: ${err.message}`)
     }
-    setLoading(false)
   }
 
-  const loadCustomers = async () => {
-    const session = sessionStorage.getItem('business_session')
-    const { business: businessData } = JSON.parse(session)
-    
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('business_id', businessData.id)
-      .order('customer_name', { ascending: true })
-    
-    if (!error && data) {
-      setCustomers(data)
+  const loadCustomers = async (businessId) => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('customer_name', { ascending: true })
+      
+      if (error) throw error
+      setCustomers(data || [])
+    } catch (err) {
+      console.error('loadCustomers error:', err)
+      setError(`Failed to load customers: ${err.message}`)
     }
   }
 
   const handleAddAppointment = async (e) => {
     e.preventDefault()
+    setError(null)
     
-    const session = sessionStorage.getItem('business_session')
-    const { business: businessData } = JSON.parse(session)
-    
-    let customerId = selectedCustomer
-    
-    // If creating new customer
-    if (customerId === 'new') {
-      const { data: newCustomer, error: customerError } = await supabase
-        .from('customers')
-        .insert({
-          business_id: businessData.id,
-          customer_name: newCustomerName,
-          customer_phone: newCustomerPhone
-        })
-        .select()
-        .single()
+    try {
+      const session = sessionStorage.getItem('business_session')
+      const { business: businessData } = JSON.parse(session)
       
-      if (customerError) {
-        alert('Error creating customer: ' + customerError.message)
-        return
+      let customerId = selectedCustomer
+      
+      if (customerId === 'new') {
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            business_id: businessData.id,
+            customer_name: newCustomerName,
+            customer_phone: newCustomerPhone
+          })
+          .select()
+          .single()
+        
+        if (customerError) throw customerError
+        customerId = newCustomer.id
+        await loadCustomers(businessData.id)
       }
       
-      customerId = newCustomer.id
-      loadCustomers() // Refresh customer list
-    }
-    
-    // Create appointment
-    const { error: appointmentError } = await supabase
-      .from('appointments')
-      .insert({
-        business_id: businessData.id,
-        customer_id: customerId,
-        appointment_date: appointmentDate,
-        appointment_time: appointmentTime,
-        notes: notes
-      })
-    
-    if (appointmentError) {
-      alert('Error creating appointment: ' + appointmentError.message)
-    } else {
-      alert('Appointment added successfully!')
+      const { error: appointmentError } = await supabase
+        .from('appointments')
+        .insert({
+          business_id: businessData.id,
+          customer_id: customerId,
+          appointment_date: appointmentDate,
+          appointment_time: appointmentTime,
+          notes: notes || null
+        })
+      
+      if (appointmentError) throw appointmentError
+      
       setShowAddModal(false)
       resetForm()
-      loadAppointments()
+      await loadAppointments(businessData.id)
+      alert('Appointment added successfully!')
+      
+    } catch (err) {
+      console.error('Add appointment error:', err)
+      setError(err.message)
     }
   }
 
@@ -154,28 +163,38 @@ export default function Dashboard() {
   const handleDeleteAppointment = async (id) => {
     if (!confirm('Delete this appointment?')) return
     
-    const { error } = await supabase
-      .from('appointments')
-      .delete()
-      .eq('id', id)
-    
-    if (error) {
-      alert('Error deleting: ' + error.message)
-    } else {
-      loadAppointments()
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      const session = sessionStorage.getItem('business_session')
+      const { business: businessData } = JSON.parse(session)
+      await loadAppointments(businessData.id)
+    } catch (err) {
+      console.error('Delete error:', err)
+      alert('Error deleting: ' + err.message)
     }
   }
 
   const handleMarkNoShow = async (id) => {
-    const { error } = await supabase
-      .from('appointments')
-      .update({ no_show: true })
-      .eq('id', id)
-    
-    if (error) {
-      alert('Error updating: ' + error.message)
-    } else {
-      loadAppointments()
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ no_show: true })
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      const session = sessionStorage.getItem('business_session')
+      const { business: businessData } = JSON.parse(session)
+      await loadAppointments(businessData.id)
+    } catch (err) {
+      console.error('Mark no-show error:', err)
+      alert('Error updating: ' + err.message)
     }
   }
 
@@ -201,9 +220,22 @@ export default function Dashboard() {
   }
 
   if (loading) {
+    return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading dashboard...</div>
+  }
+
+  if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 max-w-md">
+          <h2 className="text-red-400 font-bold text-lg mb-2">Dashboard Error</h2>
+          <p className="text-red-300 text-sm">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 bg-neonBlue text-black px-4 py-2 rounded-lg font-bold"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
@@ -215,13 +247,13 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-neonBlue font-black text-xl">RemindMe</h1>
-            <p className="text-zinc-500 text-xs">{business?.business_name}</p>
+            <p className="text-zinc-500 text-xs">{business?.business_name || 'Your Business'}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-white text-sm">
                 {business?.subscription_status === 'trial' ? (
-                  <span className="text-yellow-400">Trial • {Math.ceil((new Date(business.trial_ends_at) - new Date()) / (1000 * 60 * 60 * 24))} days left</span>
+                  <span className="text-yellow-400">Trial</span>
                 ) : business?.subscription_status === 'active' ? (
                   <span className="text-green-400">Active</span>
                 ) : (
@@ -247,7 +279,7 @@ export default function Dashboard() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-zinc-900 border border-white/10 rounded-xl p-4">
-            <div className="text-zinc-500 text-xs uppercase mb-1">Total Appointments</div>
+            <div className="text-zinc-500 text-xs uppercase mb-1">Total</div>
             <div className="text-white text-2xl font-bold">{stats.total_appointments}</div>
           </div>
           <div className="bg-zinc-900 border border-white/10 rounded-xl p-4">
@@ -264,7 +296,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Add Appointment Button */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-white font-bold text-lg">Upcoming Appointments</h2>
           <button
@@ -275,7 +306,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Appointments Table */}
         <div className="bg-zinc-900 border border-white/10 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -290,82 +320,45 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {appointments.filter(a => new Date(a.appointment_date) >= new Date()).length === 0 ? (
+                {appointments.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="text-center p-8 text-zinc-500">
-                      No upcoming appointments. Click "Add Appointment" to get started.
+                      No appointments. Click "Add Appointment" to get started.
                     </td>
                   </tr>
                 ) : (
-                  appointments
-                    .filter(a => new Date(a.appointment_date) >= new Date())
-                    .map((apt) => (
-                      <tr key={apt.id} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="p-4 text-white">{apt.customers?.customer_name}</td>
-                        <td className="p-4 text-zinc-400">{apt.customers?.customer_phone}</td>
-                        <td className="p-4 text-white">{formatDate(apt.appointment_date)}</td>
-                        <td className="p-4 text-white">{apt.appointment_time}</td>
-                        <td className="p-4">{getStatusBadge(apt)}</td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            {!apt.customer_canceled && !apt.no_show && (
-                              <button
-                                onClick={() => handleMarkNoShow(apt.id)}
-                                className="text-red-400 text-xs hover:text-red-300"
-                              >
-                                No Show
-                              </button>
-                            )}
+                  appointments.map((apt) => (
+                    <tr key={apt.id} className="border-b border-white/5 hover:bg-white/5">
+                      <td className="p-4 text-white">{apt.customers?.customer_name || 'Unknown'}</td>
+                      <td className="p-4 text-zinc-400">{apt.customers?.customer_phone || 'N/A'}</td>
+                      <td className="p-4 text-white">{formatDate(apt.appointment_date)}</td>
+                      <td className="p-4 text-white">{apt.appointment_time}</td>
+                      <td className="p-4">{getStatusBadge(apt)}</td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          {!apt.customer_canceled && !apt.no_show && (
                             <button
-                              onClick={() => handleDeleteAppointment(apt.id)}
-                              className="text-zinc-500 text-xs hover:text-white"
+                              onClick={() => handleMarkNoShow(apt.id)}
+                              className="text-red-400 text-xs hover:text-red-300"
                             >
-                              Delete
+                              No Show
                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          )}
+                          <button
+                            onClick={() => handleDeleteAppointment(apt.id)}
+                            className="text-zinc-500 text-xs hover:text-white"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
           </div>
         </div>
-
-        {/* Past Appointments Section */}
-        {appointments.filter(a => new Date(a.appointment_date) < new Date()).length > 0 && (
-          <>
-            <h2 className="text-white font-bold text-lg mt-8 mb-4">Past Appointments</h2>
-            <div className="bg-zinc-900 border border-white/10 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-black/50 border-b border-white/10">
-                    <tr>
-                      <th className="text-left p-4 text-zinc-400 text-xs">Customer</th>
-                      <th className="text-left p-4 text-zinc-400 text-xs">Phone</th>
-                      <th className="text-left p-4 text-zinc-400 text-xs">Date</th>
-                      <th className="text-left p-4 text-zinc-400 text-xs">Time</th>
-                      <th className="text-left p-4 text-zinc-400 text-xs">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appointments
-                      .filter(a => new Date(a.appointment_date) < new Date())
-                      .map((apt) => (
-                        <tr key={apt.id} className="border-b border-white/5">
-                          <td className="p-4 text-white">{apt.customers?.customer_name}</td>
-                          <td className="p-4 text-zinc-400">{apt.customers?.customer_phone}</td>
-                          <td className="p-4 text-white">{formatDate(apt.appointment_date)}</td>
-                          <td className="p-4 text-white">{apt.appointment_time}</td>
-                          <td className="p-4">{getStatusBadge(apt)}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
       </main>
 
       {/* Add Appointment Modal */}
