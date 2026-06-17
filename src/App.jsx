@@ -6,20 +6,15 @@ import LandingPage from './pages/LandingPage'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 
-const hasVisitedBefore = () => {
-  return localStorage.getItem('hasVisitedBefore') === 'true'
-}
-
+// Landing Route: Show landing page ONLY if user is NOT logged in
 const LandingRoute = () => {
-  if (hasVisitedBefore() && !isAuthenticated()) {
-    return <Navigate to="/login" replace />
-  }
   if (isAuthenticated()) {
     return <Navigate to="/dashboard" replace />
   }
   return <LandingPage />
 }
 
+// Protected Route: Require login
 const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />
@@ -27,6 +22,7 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
+// Public Route: If already logged in, go to dashboard
 const PublicRoute = ({ children }) => {
   if (isAuthenticated()) {
     return <Navigate to="/dashboard" replace />
