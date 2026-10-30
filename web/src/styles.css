@@ -43,7 +43,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* layout */
 .shell { width: 100%; max-width: 980px; margin: 0 auto; padding: 0 16px; }
-.page { padding: 20px 0 64px; }
+.page { padding-top: 20px; padding-bottom: 64px; }
 .page > * + * { margin-top: 22px; }
 
 /* announcement strip */
