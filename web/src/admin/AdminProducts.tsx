@@ -85,30 +85,28 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      <div className="panel flat scroll-x">
-        <table className="tbl">
-          <thead><tr><th>Product</th><th>Cost</th><th>Price</th><th>Stock</th><th>On sale</th><th></th></tr></thead>
-          <tbody>
-            {shown.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <b>{p.display_name || p.upstream_name}</b>
-                  <div className="muted small">{cats.find((c) => c.id === p.category_id)?.name ?? 'No category'}{p.upstream_missing && ' · gone from supplier'}</div>
-                </td>
-                <td>{naira(p.upstream_price_kobo)}</td>
-                <td><b>{naira(p.sell_price_kobo)}</b>
-                  <div className="muted small">{p.price_override_kobo != null ? 'fixed' : `+${p.markup_percent ?? 'default'}%`}</div></td>
-                <td>{p.stock}</td>
-                <td><button className={`toggle ${p.is_active ? 'on' : ''}`} aria-label="Toggle on sale" onClick={() => toggle(p)} /></td>
-                <td className="row" style={{ gap: 6 }}>
-                  <button className="btn sm ghost" onClick={() => setEdit({ ...p, display_name: p.display_name ?? '', markup_percent: p.markup_percent ?? '', override_naira: p.price_override_kobo != null ? p.price_override_kobo / 100 : '', badge: p.badge ?? '', description: p.description ?? '', category_id: p.category_id ?? '' })}>Edit</button>
-                  <button className="btn sm ghost" onClick={() => remove(p)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-            {shown.length === 0 && <tr><td colSpan={6} className="empty">No products. Tap “Sync from supplier” to import them.</td></tr>}
-          </tbody>
-        </table>
+      <div className="panel flat list">
+        {shown.map((p) => (
+          <div key={p.id} className="stack-s">
+            <div className="row between">
+              <div className="grow">
+                <b>{p.display_name || p.upstream_name}</b>
+                <div className="muted small">{cats.find((c) => c.id === p.category_id)?.name ?? 'No category'}{p.upstream_missing && ' · gone from supplier'}</div>
+              </div>
+              <button className={`toggle ${p.is_active ? 'on' : ''}`} aria-label="Toggle on sale" onClick={() => toggle(p)} />
+            </div>
+            <div className="row wrap between small">
+              <span className="muted">Cost {naira(p.upstream_price_kobo)}</span>
+              <span><b>Price {naira(p.sell_price_kobo)}</b> <span className="muted">({p.price_override_kobo != null ? 'fixed' : `+${p.markup_percent ?? 'default'}%`})</span></span>
+              <span className="muted">Stock {p.stock}</span>
+            </div>
+            <div className="row">
+              <button className="btn sm ghost" onClick={() => setEdit({ ...p, display_name: p.display_name ?? '', markup_percent: p.markup_percent ?? '', override_naira: p.price_override_kobo != null ? p.price_override_kobo / 100 : '', badge: p.badge ?? '', description: p.description ?? '', category_id: p.category_id ?? '' })}>Edit</button>
+              <button className="btn sm ghost" onClick={() => remove(p)}>Delete</button>
+            </div>
+          </div>
+        ))}
+        {shown.length === 0 && <div className="empty">No products. Tap “Sync from supplier” to import them.</div>}
       </div>
 
       {edit && (
