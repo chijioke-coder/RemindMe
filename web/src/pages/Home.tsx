@@ -48,6 +48,14 @@ export default function Home() {
         <div className="row between"><h2>Available now</h2><Link to="/products">See all</Link></div>
         <ProductBoard products={products} categories={categories} />
       </section>
+      <section className="stack-s">
+        <h2>How it works</h2>
+        <div className="steps">
+          <div className="step"><div className="num">1</div><h3>Fund your wallet</h3><p className="muted small">Pay once with Paystack. Your balance updates in seconds.</p></div>
+          <div className="step"><div className="num">2</div><h3>Pick a product</h3><p className="muted small">Choose what you need and the quantity. The total is shown before you pay.</p></div>
+          <div className="step"><div className="num">3</div><h3>Get it instantly</h3><p className="muted small">Your details appear on screen and stay saved in Orders. Failed orders are refunded automatically.</p></div>
+        </div>
+      </section>
     </>
   );
 }
