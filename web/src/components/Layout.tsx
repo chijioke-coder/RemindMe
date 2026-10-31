@@ -15,10 +15,11 @@ export default function Layout() {
     <>
       <NavLink to="/" end onClick={close}>Home</NavLink>
       <NavLink to="/products" onClick={close}>Products</NavLink>
+      {session && <NavLink to="/account" onClick={close}>My account</NavLink>}
       {session && <NavLink to="/orders" onClick={close}>Orders</NavLink>}
       {session && <NavLink to="/wallet" onClick={close}>Wallet</NavLink>}
       <NavLink to="/support" onClick={close}>Support</NavLink>
-      {profile?.role === 'admin' && <NavLink to="/admin" onClick={close}>Dashboard</NavLink>}
+      {profile?.role === 'admin' && <NavLink to="/admin" onClick={close}>Owner dashboard</NavLink>}
     </>
   );
 
