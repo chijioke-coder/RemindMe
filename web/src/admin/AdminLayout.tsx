@@ -14,7 +14,7 @@ const tabs = [
 export default function AdminLayout() {
   return (
     <>
-      <nav className="admin-nav" style={{ margin: '-20px -16px 0' }}>
+      <nav className="admin-nav">
         {tabs.map(([to, label, end]) => <NavLink key={to} to={to} end={end}>{label}</NavLink>)}
       </nav>
       <Outlet />
