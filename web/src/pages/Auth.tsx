@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 export default function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const nav = useNavigate();
   const loc = useLocation();
-  const from = (loc.state as { from?: string } | null)?.from ?? '/';
+  const from = (loc.state as { from?: string } | null)?.from ?? '/account';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
