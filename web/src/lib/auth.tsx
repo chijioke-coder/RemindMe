@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -11,12 +11,13 @@ type Ctx = {
   balanceKobo: number;
   settings: PublicSettings | null;
   loading: boolean;
+  authError: string | null;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthCtx = createContext<Ctx>({
-  session: null, profile: null, balanceKobo: 0, settings: null, loading: true,
+  session: null, profile: null, balanceKobo: 0, settings: null, loading: true, authError: null,
   refresh: async () => {}, signOut: async () => {},
 });
 export const useAuth = () => useContext(AuthCtx);
@@ -27,41 +28,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [balanceKobo, setBalance] = useState(0);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const lastUser = useRef<string | null | undefined>(undefined);
 
   const load = useCallback(async (s: Session | null) => {
-    const { data: st } = await supabase.from('public_settings').select('*').maybeSingle();
-    setSettings(st as PublicSettings | null);
-    if (!s) {
-      setProfile(null);
-      setBalance(0);
-      return;
+    try {
+      const { data: st } = await supabase.from('public_settings').select('*').maybeSingle();
+      setSettings(st as PublicSettings | null);
+      if (!s) {
+        setProfile(null);
+        setBalance(0);
+        setAuthError(null);
+        return;
+      }
+      const [p, w] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', s.user.id).maybeSingle(),
+        supabase.from('wallets').select('balance_kobo').eq('user_id', s.user.id).maybeSingle(),
+      ]);
+      setAuthError(p.error?.message ?? null);
+      setProfile((p.data as Profile | null) ?? null);
+      setBalance(Number(w.data?.balance_kobo ?? 0));
+    } catch (e) {
+      setAuthError(String(e));
     }
-    const [{ data: p }, { data: w }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', s.user.id).maybeSingle(),
-      supabase.from('wallets').select('balance_kobo').eq('user_id', s.user.id).maybeSingle(),
-    ]);
-    setProfile(p as Profile | null);
-    setBalance(Number(w?.balance_kobo ?? 0));
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      await load(data.session);
-      setLoading(false);
-    });
+    const safety = setTimeout(() => setLoading(false), 6000);
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      void load(s);
+      const id = s?.user.id ?? null;
+      const changed = lastUser.current === undefined || id !== lastUser.current;
+      lastUser.current = id;
+      if (changed) setLoading(true);
+      // Run the queries outside this callback: calling Supabase inside it can deadlock the sign-in lock.
+      setTimeout(async () => {
+        await load(s);
+        setLoading(false);
+      }, 0);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      clearTimeout(safety);
+      sub.subscription.unsubscribe();
+    };
   }, [load]);
 
   const refresh = useCallback(() => load(session), [load, session]);
   const signOut = useCallback(async () => { await supabase.auth.signOut(); }, []);
 
   return (
-    <AuthCtx.Provider value={{ session, profile, balanceKobo, settings, loading, refresh, signOut }}>
+    <AuthCtx.Provider value={{ session, profile, balanceKobo, settings, loading, authError, refresh, signOut }}>
       {children}
     </AuthCtx.Provider>
   );
