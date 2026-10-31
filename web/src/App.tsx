@@ -8,6 +8,7 @@ import Auth from './pages/Auth';
 import Wallet from './pages/Wallet';
 import Orders from './pages/Orders';
 import Support from './pages/Support';
+import Account from './pages/Account';
 import AdminLayout from './admin/AdminLayout';
 import Overview from './admin/Overview';
 import AdminProducts from './admin/AdminProducts';
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="login" element={<Auth mode="login" />} />
         <Route path="signup" element={<Auth mode="signup" />} />
         <Route path="support" element={<Support />} />
+        <Route path="account" element={<RequireAuth><Account /></RequireAuth>} />
         <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
         <Route path="orders" element={<RequireAuth><Orders /></RequireAuth>} />
         <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
