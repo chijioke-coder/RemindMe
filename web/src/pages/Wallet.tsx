@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { callApi, supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -39,10 +39,21 @@ export default function Wallet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function fund() {
+  // when the balance changes by itself (a payment landed), say so and reload the history
+  const prevBalance = useRef(balanceKobo);
+  useEffect(() => {
+    if (balanceKobo === prevBalance.current) return;
+    if (balanceKobo > prevBalance.current) {
+      setMsg({ kind: 'good', text: `Wallet credited ${naira(balanceKobo - prevBalance.current)}.` });
+    }
+    prevBalance.current = balanceKobo;
+    void loadEntries();
+  }, [balanceKobo, loadEntries]);
+
+  async function fund(channel?: string) {
     setBusy(true);
     setMsg(null);
-    const r = await callApi<{ url: string }>('topup_init', { amount_naira: Number(amount) });
+    const r = await callApi<{ url: string }>('topup_init', { amount_naira: Number(amount), channel });
     setBusy(false);
     if (r.ok) window.location.href = r.url;
     else setMsg({ kind: 'bad', text: r.detail || 'Could not start the payment.' });
@@ -64,8 +75,9 @@ export default function Wallet() {
         </div>
         <label className="f"><span>Amount in naira</span><input className="in" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} /></label>
         {msg && <div className={`notice ${msg.kind}`}>{msg.text}</div>}
-        <button className="btn block" disabled={busy || Number(amount) < 500} onClick={fund}>{busy ? 'Opening payment…' : `Pay ${naira(Number(amount || 0) * 100)}`}</button>
-        <p className="muted small">Minimum ₦500. Payments are handled by Paystack and your wallet updates right after.</p>
+        <button className="btn block" disabled={busy || Number(amount) < 500} onClick={() => fund('bank_transfer')}>{busy ? 'Opening payment…' : `Pay ${naira(Number(amount || 0) * 100)} by bank transfer`}</button>
+        <button className="btn ghost block" disabled={busy || Number(amount) < 500} onClick={() => fund()}>Pay with card or other options</button>
+        <p className="muted small">Minimum ₦500. With bank transfer you get a one-time account number to send to from any bank app. Your wallet is credited as soon as Paystack confirms the payment.</p>
       </div>
 
       <div className="panel flat">
