@@ -73,6 +73,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [load]);
 
+  // keep the wallet balance fresh without a page reload: every 5 seconds while the tab is visible,
+  // and straight away when the person comes back to the tab
+  useEffect(() => {
+    const uid = session?.user.id;
+    if (!uid) return;
+    const tick = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const { data } = await supabase.from('wallets').select('balance_kobo').eq('user_id', uid).maybeSingle();
+      if (data) setBalance(Number(data.balance_kobo));
+    };
+    const timer = setInterval(tick, 5000);
+    document.addEventListener('visibilitychange', tick);
+    window.addEventListener('focus', tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+      window.removeEventListener('focus', tick);
+    };
+  }, [session?.user.id]);
+
   const refresh = useCallback(() => load(session), [load, session]);
   const signOut = useCallback(async () => { await supabase.auth.signOut(); }, []);
 
