@@ -38,6 +38,11 @@ export default function Overview() {
   return (
     <>
       {settings?.alert && <div className="notice warn"><b>Attention:</b> {settings.alert}</div>}
+      {s.to_deliver > 0 && (
+        <div className="notice warn">
+          {s.to_deliver} paid order{s.to_deliver > 1 ? 's' : ''} waiting for you to deliver. <Link to="/admin/orders?status=processing">Open</Link>
+        </div>
+      )}
       {s.needs_review > 0 && (
         <div className="notice bad">
           {s.needs_review} order{s.needs_review > 1 ? 's' : ''} need your review. The customer may have been charged on the supplier side. <Link to="/admin/orders?status=needs_review">Open</Link>
