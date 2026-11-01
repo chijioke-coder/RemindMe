@@ -22,7 +22,7 @@ export default function Account() {
     supabase.from('wallet_ledger').select('id, kind, amount_kobo, note, created_at').eq('user_id', session.user.id)
       .order('created_at', { ascending: false }).limit(5)
       .then(({ data }) => setEntries((data ?? []) as Entry[]));
-  }, [session]);
+  }, [session, balanceKobo]);
 
   const list = orders ?? [];
   const completed = list.filter((o) => o.status === 'completed');
