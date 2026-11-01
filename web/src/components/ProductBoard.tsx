@@ -21,14 +21,15 @@ export default function ProductBoard({ title, products, categories }: { title?: 
         {products.map((p) => {
           const hue = hueFor(p.category_id ?? p.id);
           const pct = Math.min(100, Math.round((p.stock / 60) * 100));
+          const tracked = p.track_stock;
           const out = p.stock <= 0;
           return (
             <div className="item" key={p.id}>
               <div className="tile" style={{ background: `hsl(${hue} 55% 36%)` }}>{initials(catName(p.category_id) || p.name)}</div>
               <div className="grow">
                 <div className="name">{p.name} {p.badge && <span className="badge hot">{p.badge}</span>}</div>
-                <div className="muted small">{catName(p.category_id)} · {out ? 'Out of stock' : `${p.stock} in stock`}</div>
-                <div className={`gauge ${p.stock < 8 ? 'low' : ''}`}><i style={{ width: `${out ? 0 : Math.max(pct, 6)}%` }} /></div>
+                <div className="muted small">{catName(p.category_id)} · {out ? 'Out of stock' : tracked ? `${p.stock} in stock` : 'Available'}</div>
+                {tracked && <div className={`gauge ${p.stock < 8 ? 'low' : ''}`}><i style={{ width: `${out ? 0 : Math.max(pct, 6)}%` }} /></div>}
               </div>
               <div className="price">{naira(p.price_kobo)}</div>
               <button
