@@ -50,6 +50,7 @@ export default function AdminOrders() {
                 <div className="grow">
                   <div style={{ fontWeight: 700 }}>{o.product_name} × {o.quantity}</div>
                   <div className="muted small">{o.profiles?.email} · {dateTime(o.created_at)}</div>
+                  {o.status === 'processing' && o.delivery_type === 'manual' && <span className="badge needs_review">Deliver this</span>}
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontWeight: 700 }}>{naira(o.total_kobo)}</div>
@@ -62,12 +63,13 @@ export default function AdminOrders() {
                     Order {o.id.slice(0, 8)} · Supplier order {o.upstream_order_id ?? '—'} · Cost {cost != null ? naira(cost) : '—'}
                     {cost != null && ` · Profit ${naira(o.total_kobo - cost)}`}
                   </div>
+                  {o.customer_note && <div className="notice good"><b>Customer details:</b> {o.customer_note}</div>}
                   {o.error_code && <div className="notice warn"><b>{o.error_code}</b>{o.error_detail ? `: ${o.error_detail}` : ''}</div>}
                   {o.flag && <div className="notice warn">Flag: {o.flag}</div>}
-                  {o.status === 'needs_review' && (
+                  {(o.status === 'needs_review' || (o.status === 'processing' && o.delivery_type === 'manual')) && (
                     <div className="panel stack">
-                      <h3>Resolve this order</h3>
-                      <p className="muted small">Check the supplier&apos;s order history. If they charged you, paste the keys to deliver. If not, refund the customer.</p>
+                      <h3>{o.status === 'processing' ? 'Deliver or refund' : 'Resolve this order'}</h3>
+                      <p className="muted small">{o.delivery_type === 'manual' ? 'Type what the customer should receive (a login, a link or a message), one per line. It shows in their Orders.' : "Check the supplier's order history. If they charged you, paste the keys to deliver. If not, refund the customer."}</p>
                       <label className="f"><span>Keys (one per line)</span><textarea className="in" value={keys} onChange={(e) => setKeys(e.target.value)} /></label>
                       <div className="grid2">
                         <label className="f"><span>Supplier order ID (optional)</span><input className="in" inputMode="numeric" value={supOrder} onChange={(e) => setSupOrder(e.target.value)} /></label>
