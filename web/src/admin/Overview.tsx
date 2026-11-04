@@ -39,8 +39,10 @@ export default function Overview() {
     <>
       {settings?.alert && <div className="notice warn"><b>Attention:</b> {settings.alert}</div>}
       {s.to_deliver > 0 && (
-        <div className="notice warn">
-          {s.to_deliver} paid order{s.to_deliver > 1 ? 's' : ''} waiting for you to deliver. <Link to="/admin/orders?status=processing">Open</Link>
+        <div className={`notice ${s.overdue > 0 ? 'bad' : 'warn'}`}>
+          {s.to_deliver} paid order{s.to_deliver > 1 ? 's' : ''} waiting for you to deliver
+          {s.overdue > 0 ? `, ${s.overdue} already overdue. Customers can see they are late and may contact support.` : '.'}{' '}
+          <Link to="/admin/orders?status=to_deliver">Open</Link>
         </div>
       )}
       {s.needs_review > 0 && (

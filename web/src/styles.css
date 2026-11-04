@@ -207,3 +207,52 @@ textarea.in { min-height: 90px; resize: vertical; }
 .grid2 { display: grid; gap: 12px; grid-template-columns: 1fr; }
 @media (min-width: 640px) { .grid2 { grid-template-columns: 1fr 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- v3: icons, carousels, rails, delivery timeline ---------- */
+.tile { overflow: hidden; flex: none; }
+.tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.eyebrow { display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.eyebrow.dark { color: var(--teal-d); }
+.btn.light { color: #fff; border-color: rgba(255,255,255,.4); }
+.btn.light:hover { background: rgba(255,255,255,.12); }
+
+.carousel { position: relative; overflow: hidden; border-radius: 20px; background: var(--ink); }
+.carousel-track { display: flex; transition: transform .55s cubic-bezier(.22,.8,.3,1); }
+.carousel-slide { flex: 0 0 100%; min-width: 0; }
+.slide { padding: clamp(24px, 6vw, 64px) clamp(20px, 5vw, 56px) clamp(52px, 8vw, 76px); color: #fff; min-height: 320px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.slide h1 { max-width: 18ch; }
+.slide p { color: #c9d6de; max-width: 46ch; font-size: clamp(1rem, 2.4vw, 1.15rem); }
+.slide .row { margin-top: 10px; }
+.s1 { background: radial-gradient(120% 90% at 100% 0%, #0b7a6e 0%, transparent 55%), var(--ink); }
+.s2 { background: radial-gradient(120% 90% at 0% 100%, #f2b01e44 0%, transparent 55%), #0f2a33; }
+.s3 { background: radial-gradient(110% 90% at 100% 100%, #0b7a6e 0%, transparent 60%), #14212b; }
+.s4 { background: radial-gradient(120% 90% at 0% 0%, #f2b01e55 0%, transparent 55%), #1a2530; }
+.dots { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; gap: 8px; }
+.dots button { width: 9px; height: 9px; border-radius: 99px; border: 0; padding: 0; background: rgba(255,255,255,.35); cursor: pointer; transition: width .25s, background .25s; }
+.dots button.on { width: 26px; background: var(--gold); }
+
+.rail { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 10px; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.rail::-webkit-scrollbar { display: none; }
+@media (min-width: 1160px) { .rail { margin-inline: 0; padding-inline: 2px; } }
+.rail-card { flex: 0 0 min(78%, 270px); scroll-snap-align: start; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: space-between; }
+.rail-card .name { font-weight: 700; line-height: 1.25; }
+.rail-card .price { font-family: var(--font-d); font-weight: 800; font-size: 1.1rem; }
+
+@media (max-width: 719px) {
+  .steps { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scrollbar-width: none; }
+  .steps::-webkit-scrollbar { display: none; }
+  .step { flex: 0 0 82%; scroll-snap-align: start; }
+}
+.faq { border-bottom: 1px solid var(--line); padding: 14px clamp(14px, 3vw, 20px); }
+.faq:last-child { border-bottom: 0; }
+.faq summary { font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.faq summary::after { content: '+'; color: var(--teal); font-size: 1.3rem; line-height: 1; }
+.faq[open] summary::after { content: '−'; }
+.faq p { margin-top: 8px; }
+.cta-band { background: var(--teal); color: #fff; border-radius: 20px; padding: clamp(24px, 5vw, 44px); display: grid; gap: 10px; justify-items: start; }
+.cta-band p { color: #d5efe9; }
+
+.timeline { display: flex; gap: 6px; }
+.timeline span { flex: 1; font-size: 0.78rem; font-weight: 700; color: var(--mute); border-top: 4px solid var(--line); padding-top: 6px; }
+.timeline span.on { color: var(--teal-d); border-color: var(--teal); }
+.timeline span.now { color: #7a5600; border-color: var(--gold); }

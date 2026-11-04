@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { hueFor, initials, naira } from '../lib/format';
+import { naira } from '../lib/format';
 import BuyModal, { type StoreProduct } from './BuyModal';
+import ProductIcon from './ProductIcon';
 
 export type StoreCategory = { id: number; name: string; slug: string };
 
@@ -19,13 +20,12 @@ export default function ProductBoard({ title, products, categories }: { title?: 
       <div className="board">
         {title && <div className="board-head">{title}</div>}
         {products.map((p) => {
-          const hue = hueFor(p.category_id ?? p.id);
           const pct = Math.min(100, Math.round((p.stock / 60) * 100));
           const tracked = p.track_stock;
           const out = p.stock <= 0;
           return (
             <div className="item" key={p.id}>
-              <div className="tile" style={{ background: `hsl(${hue} 55% 36%)` }}>{initials(catName(p.category_id) || p.name)}</div>
+              <ProductIcon path={p.icon_path} label={catName(p.category_id) || p.name} seed={p.category_id ?? p.id} />
               <div className="grow">
                 <div className="name">{p.name} {p.badge && <span className="badge hot">{p.badge}</span>}</div>
                 <div className="muted small">{catName(p.category_id)} · {out ? 'Out of stock' : tracked ? `${p.stock} in stock` : 'Available'}</div>

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { dateTime, naira, STATUS_LABEL } from '../lib/format';
+import type { StoreProduct } from '../components/BuyModal';
+import ProductRail from '../components/ProductRail';
 
 type Order = { id: string; product_name: string; quantity: number; total_kobo: number; status: string; created_at: string };
 type Entry = { id: number; kind: string; amount_kobo: number; note: string | null; created_at: string };
@@ -11,6 +13,7 @@ export default function Account() {
   const { profile, session, balanceKobo, signOut } = useAuth();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [fresh, setFresh] = useState<StoreProduct[]>([]);
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'good' | 'bad'; text: string } | null>(null);
@@ -23,6 +26,11 @@ export default function Account() {
       .order('created_at', { ascending: false }).limit(5)
       .then(({ data }) => setEntries((data ?? []) as Entry[]));
   }, [session, balanceKobo]);
+
+  useEffect(() => {
+    supabase.from('storefront_products').select('*').order('id', { ascending: false }).limit(10)
+      .then(({ data }) => setFresh((data ?? []) as StoreProduct[]));
+  }, []);
 
   const list = orders ?? [];
   const completed = list.filter((o) => o.status === 'completed');
@@ -62,6 +70,8 @@ export default function Account() {
         <div className="stat"><div className="muted small">Total spent</div><div className="v">{naira(spent)}</div></div>
         <div className="stat"><div className="muted small">Refunded</div><div className="v">{refunded}</div></div>
       </div>
+
+      {fresh.length > 0 && <ProductRail products={fresh} categories={[]} grouped={false} title="New in the store" />}
 
       <div className="panel flat">
         <div className="row between" style={{ padding: '14px 20px' }}>
