@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { dateTime, naira, STATUS_LABEL } from '../lib/format';
 import type { StoreProduct } from '../components/BuyModal';
 import ProductRail from '../components/ProductRail';
+import AnnouncementCard from '../components/AnnouncementCard';
 
 type Order = { id: string; product_name: string; quantity: number; total_kobo: number; status: string; created_at: string };
 type Entry = { id: number; kind: string; amount_kobo: number; note: string | null; created_at: string };
@@ -23,7 +24,7 @@ export default function Account() {
     supabase.from('my_orders').select('*').order('created_at', { ascending: false }).limit(200)
       .then(({ data }) => setOrders((data ?? []) as Order[]));
     supabase.from('wallet_ledger').select('id, kind, amount_kobo, note, created_at').eq('user_id', session.user.id)
-      .order('created_at', { ascending: false }).limit(5)
+      .order('created_at', { ascending: false }).limit(6)
       .then(({ data }) => setEntries((data ?? []) as Entry[]));
   }, [session, balanceKobo]);
 
@@ -55,70 +56,78 @@ export default function Account() {
         <p className="muted">Your orders, wallet and account in one place.</p>
       </div>
 
-      <div className="panel stack">
-        <div className="muted">Wallet balance</div>
-        <h1>{naira(balanceKobo)}</h1>
-        <div className="row wrap">
-          <Link to="/wallet" className="btn gold">Add funds</Link>
-          <Link to="/products" className="btn ghost">Browse products</Link>
-        </div>
-      </div>
+      <AnnouncementCard />
 
-      <div className="stats">
-        <div className="stat"><div className="muted small">Orders</div><div className="v">{list.length}</div></div>
-        <div className="stat"><div className="muted small">Completed</div><div className="v">{completed.length}</div></div>
-        <div className="stat"><div className="muted small">Total spent</div><div className="v">{naira(spent)}</div></div>
-        <div className="stat"><div className="muted small">Refunded</div><div className="v">{refunded}</div></div>
-      </div>
-
-      {fresh.length > 0 && <ProductRail products={fresh} categories={[]} grouped={false} title="New in the store" />}
-
-      <div className="panel flat">
-        <div className="row between" style={{ padding: '14px 20px' }}>
-          <h2>Recent orders</h2>
-          <Link to="/orders">View all</Link>
-        </div>
-        {orders === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
-          <div className="empty">No orders yet. <Link to="/products">Browse products</Link></div>
-        ) : (
-          <div className="list" style={{ borderTop: '1px solid var(--line)' }}>
-            {list.slice(0, 5).map((o) => (
-              <div className="row between" key={o.id}>
-                <div className="grow">
-                  <div style={{ fontWeight: 600 }}>{o.product_name} × {o.quantity}</div>
-                  <div className="muted small">{dateTime(o.created_at)}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700 }}>{naira(o.total_kobo)}</div>
-                  <span className={`badge ${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
-                </div>
-              </div>
-            ))}
+      <div className="cols">
+        <div className="panel stack">
+          <div className="muted">Wallet balance</div>
+          <h1>{naira(balanceKobo)}</h1>
+          <div className="row wrap">
+            <Link to="/wallet" className="btn gold">Add funds</Link>
+            <Link to="/products" className="btn ghost">Browse products</Link>
+            <Link to="/referrals" className="btn ghost">Invite friends</Link>
           </div>
-        )}
-      </div>
-
-      <div className="panel flat">
-        <div className="row between" style={{ padding: '14px 20px' }}>
-          <h2>Wallet activity</h2>
-          <Link to="/wallet">Full history</Link>
         </div>
-        {entries.length === 0 ? <div className="empty">No transactions yet.</div> : (
-          <div className="list" style={{ borderTop: '1px solid var(--line)' }}>
-            {entries.map((e) => (
-              <div className="row between" key={e.id}>
-                <div className="grow">
-                  <div style={{ fontWeight: 600 }}>{e.note || e.kind}</div>
-                  <div className="muted small">{dateTime(e.created_at)}</div>
-                </div>
-                <div className={e.amount_kobo > 0 ? 'amt-plus' : 'amt-minus'}>{e.amount_kobo > 0 ? '+' : '−'}{naira(Math.abs(e.amount_kobo))}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="stats">
+          <div className="stat"><div className="muted small">Orders</div><div className="v">{list.length}</div></div>
+          <div className="stat"><div className="muted small">Completed</div><div className="v">{completed.length}</div></div>
+          <div className="stat"><div className="muted small">Total spent</div><div className="v">{naira(spent)}</div></div>
+          <div className="stat"><div className="muted small">Refunded</div><div className="v">{refunded}</div></div>
+        </div>
       </div>
 
-      <form className="panel stack" onSubmit={changePassword}>
+      {fresh.length > 0 && <ProductRail products={fresh} categories={[]} grouped={false} layout="carousel" title="New in the store" />}
+
+      <div className="cols">
+        <div className="panel flat">
+          <div className="row between" style={{ padding: '16px 20px' }}>
+            <h2>Recent orders</h2>
+            <Link to="/orders">View all</Link>
+          </div>
+          {orders === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
+            <div className="empty">No orders yet. <Link to="/products">Browse products</Link></div>
+          ) : (
+            <div className="list" style={{ borderTop: '1px solid var(--line)' }}>
+              {list.slice(0, 5).map((o) => (
+                <Link key={o.id} to={`/orders/${o.id}`} className="order-row">
+                  <div className="row between">
+                    <div className="grow">
+                      <div style={{ fontWeight: 600 }}>{o.product_name} × {o.quantity}</div>
+                      <div className="muted small">{dateTime(o.created_at)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700 }}>{naira(o.total_kobo)}</div>
+                      <span className={`badge ${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="panel flat">
+          <div className="row between" style={{ padding: '16px 20px' }}>
+            <h2>Wallet activity</h2>
+            <Link to="/wallet">Full history</Link>
+          </div>
+          {entries.length === 0 ? <div className="empty">No transactions yet.</div> : (
+            <div className="list" style={{ borderTop: '1px solid var(--line)' }}>
+              {entries.map((e) => (
+                <div className="row between" key={e.id}>
+                  <div className="grow">
+                    <div style={{ fontWeight: 600 }}>{e.note || e.kind}</div>
+                    <div className="muted small">{dateTime(e.created_at)}</div>
+                  </div>
+                  <div className={e.amount_kobo > 0 ? 'amt-plus' : 'amt-minus'}>{e.amount_kobo > 0 ? '+' : '−'}{naira(Math.abs(e.amount_kobo))}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <form className="panel stack" onSubmit={changePassword} style={{ maxWidth: 560 }}>
         <h2>Account</h2>
         <div className="muted small">Signed in as {profile?.email}</div>
         <label className="f"><span>New password</span>

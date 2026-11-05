@@ -136,6 +136,9 @@ export default function TestLab() {
           <li><b>Stock with a file:</b> Products → Add stock → “One item with a file”, upload a small image or .zip, buy it, then check the Download button works.</li>
           <li><b>Deliver by hand:</b> buy “TEST TikTok followers” with a username. Open Orders → To deliver, write a message, attach a file, tap Deliver. Check the customer’s Orders shows it.</li>
           <li><b>Late delivery:</b> buy the service again, tap “Make waiting deliveries late”, then open the customer’s Orders. It should show the late notice and a Contact support button. Test “Send update” and “Refund customer” on it.</li>
+          <li><b>Order page:</b> after any purchase you land on the order page, not the popup. Check the receipt, your details and the seller's note.</li>
+          <li><b>Promo code:</b> Referrals & promos → create a code with a bonus, open its sign-up link in a private tab, create a new account, and check the bonus is in the new wallet.</li>
+          <li><b>Referral link:</b> Invite friends → copy your link, sign up a second test account with it, and check it shows in your list and in Referrals & promos.</li>
           <li><b>Icons:</b> Products → Edit → upload an icon, replace it, remove it. Check the store shows each change.</li>
         </ol>
         <p className="muted small">Contact support needs a WhatsApp number saved in Settings.</p>

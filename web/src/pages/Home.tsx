@@ -7,12 +7,13 @@ import type { StoreProduct } from '../components/BuyModal';
 import type { StoreCategory } from '../components/ProductBoard';
 import Carousel from '../components/Carousel';
 import ProductRail from '../components/ProductRail';
+import AnnouncementCard from '../components/AnnouncementCard';
 
 const FAQ: [string, string][] = [
   ['Is every item unique?', 'Yes. Each account, number or page is its own item. Once someone buys it, it is gone from the list, so you never share what you buy.'],
   ['What happens if my order fails?', 'Your wallet is refunded automatically and straight away. You never pay for something you did not receive.'],
   ['How do I pay?', 'Add money to your wallet by bank transfer or card, then spend it on anything in the store. The wallet updates by itself.'],
-  ['Some orders say "delivered by us". How long do they take?', 'Those are prepared by hand. Each one shows a promised delivery time, and a Contact support button appears if it runs late.'],
+  ['Some orders are prepared by hand. How long do they take?', 'Each one shows a promised delivery time. If it runs late, a Contact support button appears on your order page.'],
 ];
 
 export default function Home() {
@@ -22,7 +23,7 @@ export default function Home() {
   const wa = settings?.support_whatsapp?.replace(/\D/g, '');
 
   useEffect(() => {
-    supabase.from('storefront_products').select('*').order('sort_order').order('id', { ascending: false }).limit(60)
+    supabase.from('storefront_products').select('*').order('sort_order').order('id', { ascending: false }).limit(120)
       .then(({ data }) => setProducts((data ?? []) as StoreProduct[]));
     supabase.from('categories').select('id,name,slug').eq('is_active', true).order('sort_order')
       .then(({ data }) => setCategories((data ?? []) as StoreCategory[]));
@@ -36,14 +37,14 @@ export default function Home() {
         <span className="eyebrow">Unique, one-of-a-kind listings</span>
         <h1>Pick exactly what you buy.</h1>
         <p>Every account, number and page is its own item. Choose the one you want and it is yours alone.</p>
-        <div className="row wrap"><Link to="/products" className="btn gold">Browse the store</Link>{!session && <Link to="/signup" className="btn ghost light">Create account</Link>}</div>
+        <div className="row wrap"><Link to="/products" className="btn gold">Browse the store</Link>{!session && <Link to="/signup" className="btn light">Create account</Link>}</div>
       </div>
     ),
     (
       <div className="slide s2">
         <span className="eyebrow">Fast and simple</span>
         <h1>Fund once. Buy in seconds.</h1>
-        <p>Top up your wallet by bank transfer, then your purchase appears on screen as soon as it is ready.</p>
+        <p>Top up your wallet by bank transfer, then your purchase appears on its own page as soon as it is ready.</p>
         <div className="row wrap"><Link to={session ? '/wallet' : '/signup'} className="btn gold">{session ? 'Fund wallet' : 'Get started'}</Link></div>
       </div>
     ),
@@ -84,6 +85,7 @@ export default function Home() {
       )}
 
       <Carousel slides={slides} />
+      <AnnouncementCard />
 
       {categories.length > 0 && (
         <section className="stack-s">
@@ -107,24 +109,25 @@ export default function Home() {
         <div className="steps">
           <div className="step"><div className="num">1</div><h3>Fund your wallet</h3><p className="muted small">Send money by bank transfer or card. Your balance updates on its own.</p></div>
           <div className="step"><div className="num">2</div><h3>Choose your item</h3><p className="muted small">Pick a product, and where it is offered, the exact item you want.</p></div>
-          <div className="step"><div className="num">3</div><h3>Get it delivered</h3><p className="muted small">Your details, links or files appear in your account and stay saved in Orders.</p></div>
+          <div className="step"><div className="num">3</div><h3>Get it delivered</h3><p className="muted small">Your details, links or files appear on your order page and stay saved in Orders.</p></div>
         </div>
       </section>
 
-      <section className="stack-s">
-        <span className="eyebrow dark">Good to know</span>
-        <h2>Questions people ask</h2>
-        <div className="panel flat">
-          {FAQ.map(([q, a]) => (
-            <details className="faq" key={q}><summary>{q}</summary><p className="muted">{a}</p></details>
-          ))}
+      <section className="cols wide-left">
+        <div className="stack-s">
+          <span className="eyebrow dark">Good to know</span>
+          <h2>Questions people ask</h2>
+          <div className="panel flat">
+            {FAQ.map(([q, a]) => (
+              <details className="faq" key={q}><summary>{q}</summary><p className="muted">{a}</p></details>
+            ))}
+          </div>
         </div>
-      </section>
-
-      <section className="cta-band">
-        <h2>{session ? 'Ready for your next order?' : 'Create your account in a minute'}</h2>
-        <p>{session ? 'Everything you bought is saved in your orders.' : 'No fees to join. Add funds only when you are ready to buy.'}</p>
-        <Link to={session ? '/products' : '/signup'} className="btn gold">{session ? 'Browse products' : 'Create account'}</Link>
+        <div className="cta-band">
+          <h2>{session ? 'Ready for your next order?' : 'Create your account in a minute'}</h2>
+          <p>{session ? 'Everything you bought is saved in your orders.' : 'No fees to join. Add funds only when you are ready to buy.'}</p>
+          <Link to={session ? '/products' : '/signup'} className="btn gold">{session ? 'Browse products' : 'Create account'}</Link>
+        </div>
       </section>
     </>
   );

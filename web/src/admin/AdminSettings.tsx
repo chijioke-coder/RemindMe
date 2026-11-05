@@ -38,7 +38,7 @@ export default function AdminSettings() {
         <h2>Store</h2>
         <label className="f"><span>Store name</span><input className="in" value={s.site_name} onChange={(e) => set('site_name', e.target.value)} /></label>
         <label className="f"><span>Default markup % over supplier price</span><input className="in" inputMode="decimal" value={s.default_markup_percent} onChange={(e) => set('default_markup_percent', e.target.value)} /></label>
-        <label className="f"><span>Announcement banner (blank = none)</span><input className="in" value={s.announcement ?? ''} onChange={(e) => set('announcement', e.target.value)} /></label>
+        <label className="f"><span>Announcement card (shown on Home and My account; a link becomes a button; blank = none)</span><input className="in" value={s.announcement ?? ''} onChange={(e) => set('announcement', e.target.value)} /></label>
         <label className="f"><span>Support WhatsApp number (with country code)</span><input className="in" inputMode="tel" placeholder="2348012345678" value={s.support_whatsapp ?? ''} onChange={(e) => set('support_whatsapp', e.target.value)} /></label>
       </div>
 

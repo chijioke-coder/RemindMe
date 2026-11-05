@@ -13,7 +13,7 @@ const calcPrice = (costKobo: number, markup: string | number, override: string |
 
 const EMPTY_OWN = {
   name: '', category_id: '', delivery_type: 'stock', price_naira: '', cost_naira: '',
-  description: '', badge: '', input_label: '', delivery_note: '', pick_items: false,
+  description: '', badge: '', input_label: '', delivery_note: '', pick_items: false, after_message: '',
   delivery_hours: '24', iconFile: null as File | null,
 };
 
@@ -28,10 +28,12 @@ export default function AdminProducts() {
   const [own, setOwn] = useState<any | null>(null);
   const [stockFor, setStockFor] = useState<any | null>(null);
   const [stockText, setStockText] = useState('');
-  const [stockTab, setStockTab] = useState<'lines' | 'file'>('lines');
+  const [stockTab, setStockTab] = useState<'lines' | 'link' | 'file'>('lines');
   const [fLabel, setFLabel] = useState('');
   const [fDetails, setFDetails] = useState('');
   const [fFile, setFFile] = useState<File | null>(null);
+  const [lLabel, setLLabel] = useState('');
+  const [lUrl, setLUrl] = useState('');
   const [viewStock, setViewStock] = useState<any | null>(null);
   const [stockRows, setStockRows] = useState<any[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
@@ -123,7 +125,7 @@ export default function AdminProducts() {
       cost_naira: p.upstream_price_kobo / 100,
       badge: p.badge ?? '', description: p.description ?? '', category_id: p.category_id ?? '',
       input_label: p.input_label ?? '', delivery_note: p.delivery_note ?? '',
-      delivery_hours: p.delivery_hours ?? '',
+      delivery_hours: p.delivery_hours ?? '', after_message: p.after_message ?? '',
     });
   }
 
@@ -142,6 +144,7 @@ export default function AdminProducts() {
       description: e.description || null,
       input_label: e.input_label || null,
       delivery_note: e.delivery_note || null,
+      after_message: e.after_message || null,
       delivery_hours: e.delivery_type === 'manual' ? Number(e.delivery_hours) : null,
       sort_order: Number(e.sort_order) || 0,
       pick_items: e.delivery_type === 'stock' ? !!e.pick_items : false,
@@ -175,6 +178,7 @@ export default function AdminProducts() {
       badge: o.badge || null,
       input_label: o.input_label || null,
       delivery_note: o.delivery_note || null,
+      after_message: o.after_message || null,
       delivery_hours: o.delivery_type === 'manual' ? Number(o.delivery_hours) : null,
       is_active: true,
       stock: 0,
@@ -203,6 +207,20 @@ export default function AdminProducts() {
     if (!r.ok) return setMsg({ kind: 'bad', text: r.detail || 'Could not add stock.' });
     setMsg({ kind: 'good', text: `Added ${r.added} items. ${r.stock} now available.` });
     setStockText('');
+    setStockFor(null);
+    await load();
+  }
+
+  async function addStockLink() {
+    const url = lUrl.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) return setMsg({ kind: 'bad', text: 'Enter a full link that starts with http:// or https://' });
+    setBusy(true);
+    const line = lLabel.trim() ? `${lLabel.trim()} ## ${url}` : url;
+    const r = await callApi<any>('add_stock', { product_id: stockFor.id, items: [line] });
+    setBusy(false);
+    if (!r.ok) return setMsg({ kind: 'bad', text: r.detail || 'Could not add the link.' });
+    setMsg({ kind: 'good', text: `Link added. ${r.stock} now available.` });
+    setLLabel(''); setLUrl('');
     setStockFor(null);
     await load();
   }
@@ -311,9 +329,9 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      <div className="panel flat list">
+      <div className="pgrid">
         {shown.map((p) => (
-          <div key={p.id} className="stack-s">
+          <div key={p.id} className="panel stack-s">
             <div className="row between">
               <ProductIcon path={p.icon_path} label={p.display_name || p.upstream_name} seed={p.category_id ?? p.id} size={42} />
               <div className="grow">
@@ -394,10 +412,11 @@ export default function AdminProducts() {
               <label className="f"><span>Sort order</span><input className="in" inputMode="numeric" value={edit.sort_order} onChange={(e) => setEdit({ ...edit, sort_order: e.target.value })} /></label>
             </div>
             <label className="f"><span>Description</span><textarea className="in" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></label>
+            <label className="f"><span>Message shown after purchase (optional, e.g. “Thank you! Your order is being prepared.”)</span><textarea className="in" value={edit.after_message} onChange={(e) => setEdit({ ...edit, after_message: e.target.value })} /></label>
             {edit.source === 'own' && (
               <>
                 <label className="f"><span>Ask the customer for (optional, e.g. “Your TikTok username”)</span><input className="in" value={edit.input_label} onChange={(e) => setEdit({ ...edit, input_label: e.target.value })} /></label>
-                <label className="f"><span>Message to the customer (optional)</span><input className="in" value={edit.delivery_note} onChange={(e) => setEdit({ ...edit, delivery_note: e.target.value })} /></label>
+                <label className="f"><span>Short note shown before buying (optional)</span><input className="in" value={edit.delivery_note} onChange={(e) => setEdit({ ...edit, delivery_note: e.target.value })} /></label>
               </>
             )}
             <div className="row"><button className="btn grow" disabled={busy} onClick={save}>{busy ? 'Working…' : 'Save changes'}</button><button className="btn ghost" disabled={busy} onClick={() => setEdit(null)}>Close</button></div>
@@ -433,8 +452,9 @@ export default function AdminProducts() {
               <label className="f"><span>Promised delivery time (hours)</span><input className="in" inputMode="numeric" value={own.delivery_hours} onChange={(e) => setOwn({ ...own, delivery_hours: e.target.value })} /></label>
             )}
             <label className="f"><span>Description</span><textarea className="in" value={own.description} onChange={(e) => setOwn({ ...own, description: e.target.value })} /></label>
+            <label className="f"><span>Message shown after purchase (optional, e.g. “Thank you! Your order is being prepared.”)</span><textarea className="in" value={own.after_message} onChange={(e) => setOwn({ ...own, after_message: e.target.value })} /></label>
             <label className="f"><span>{own.delivery_type === 'manual' ? 'What you need from the customer (e.g. “Your TikTok username”)' : 'Ask the customer for (optional)'}</span><input className="in" value={own.input_label} onChange={(e) => setOwn({ ...own, input_label: e.target.value })} /></label>
-            <label className="f"><span>Message to the customer (optional, e.g. “Do not change your username until delivery”)</span><input className="in" value={own.delivery_note} onChange={(e) => setOwn({ ...own, delivery_note: e.target.value })} /></label>
+            <label className="f"><span>Short note shown before buying (optional, e.g. “Do not change your username until delivery”)</span><input className="in" value={own.delivery_note} onChange={(e) => setOwn({ ...own, delivery_note: e.target.value })} /></label>
             {own.delivery_type === 'stock' && (
               <label className="check"><input type="checkbox" checked={!!own.pick_items} onChange={(e) => setOwn({ ...own, pick_items: e.target.checked })} /> Let customers choose which item they buy (like a list of numbers or accounts)</label>
             )}
@@ -451,6 +471,7 @@ export default function AdminProducts() {
             <p className="muted small">{stockFor.display_name || stockFor.upstream_name} · {stockFor.stock} available now</p>
             <div className="chips">
               <button className={`chip ${stockTab === 'lines' ? 'on' : ''}`} onClick={() => setStockTab('lines')}>Text or links (many at once)</button>
+              <button className={`chip ${stockTab === 'link' ? 'on' : ''}`} onClick={() => setStockTab('link')}>One link</button>
               <button className={`chip ${stockTab === 'file' ? 'on' : ''}`} onClick={() => setStockTab('file')}>One item with a file</button>
             </div>
 
@@ -464,6 +485,16 @@ export default function AdminProducts() {
                 <p className="muted small">{stockText.split('\n').filter((l) => l.trim()).length} items ready. Each line is one unique item and is encrypted.</p>
                 <div className="row">
                   <button className="btn grow" disabled={busy || !stockText.trim()} onClick={addStock}>{busy ? 'Adding…' : 'Add to stock'}</button>
+                  <button className="btn ghost" disabled={busy} onClick={() => setStockFor(null)}>Cancel</button>
+                </div>
+              </>
+            ) : stockTab === 'link' ? (
+              <>
+                <p className="muted small">For an item that is a link, such as a download page, a private group or a shared folder. The buyer gets a button that opens it.</p>
+                <label className="f"><span>{stockFor.pick_items ? 'Label customers see before buying' : 'Label (optional, only you see it)'}</span><input className="in" value={lLabel} onChange={(e) => setLLabel(e.target.value)} /></label>
+                <label className="f"><span>Link</span><input className="in" inputMode="url" placeholder="https://" value={lUrl} onChange={(e) => setLUrl(e.target.value)} /></label>
+                <div className="row">
+                  <button className="btn grow" disabled={busy || !lUrl.trim()} onClick={addStockLink}>{busy ? 'Adding…' : 'Add link'}</button>
                   <button className="btn ghost" disabled={busy} onClick={() => setStockFor(null)}>Cancel</button>
                 </div>
               </>

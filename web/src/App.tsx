@@ -9,6 +9,8 @@ import Wallet from './pages/Wallet';
 import Orders from './pages/Orders';
 import Support from './pages/Support';
 import Account from './pages/Account';
+import OrderDetail from './pages/OrderDetail';
+import Referrals from './pages/Referrals';
 import AdminLayout from './admin/AdminLayout';
 import Overview from './admin/Overview';
 import AdminProducts from './admin/AdminProducts';
@@ -18,11 +20,12 @@ import AdminCustomers from './admin/AdminCustomers';
 import AdminActivity from './admin/AdminActivity';
 import AdminSettings from './admin/AdminSettings';
 import TestLab from './admin/TestLab';
+import AdminReferrals from './admin/AdminReferrals';
 
 export default function App() {
   if (!configured) {
     return (
-      <div className="shell page">
+      <div className="content">
         <div className="panel stack">
           <h2>Setup needed</h2>
           <p>Create <b>web/.env</b> from <b>.env.example</b> and add your Supabase URL and anon key, then restart.</p>
@@ -41,12 +44,15 @@ export default function App() {
         <Route path="account" element={<RequireAuth><Account /></RequireAuth>} />
         <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
         <Route path="orders" element={<RequireAuth><Orders /></RequireAuth>} />
+        <Route path="orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+        <Route path="referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
         <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
           <Route index element={<Overview />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="customers" element={<AdminCustomers />} />
+          <Route path="referrals" element={<AdminReferrals />} />
           <Route path="activity" element={<AdminActivity />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="test-lab" element={<TestLab />} />

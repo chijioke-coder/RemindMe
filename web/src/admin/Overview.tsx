@@ -67,6 +67,7 @@ export default function Overview() {
       </div>
       {err && <div className="notice bad">{err}</div>}
 
+      <div className="cols">
       <div className="panel stack">
         <h2>Sales, last 14 days</h2>
         <div className="bars">
@@ -96,6 +97,7 @@ export default function Overview() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </>
   );

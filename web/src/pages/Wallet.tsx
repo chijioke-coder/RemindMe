@@ -66,6 +66,7 @@ export default function Wallet() {
         <h1>{naira(balanceKobo)}</h1>
       </div>
 
+      <div className="cols">
       <div className="panel stack">
         <h2>Add funds</h2>
         <div className="chips">
@@ -98,6 +99,7 @@ export default function Wallet() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </>
   );

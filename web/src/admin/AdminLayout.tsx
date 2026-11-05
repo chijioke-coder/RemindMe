@@ -1,23 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
-const tabs = [
-  ['/admin', 'Overview', true],
-  ['/admin/orders', 'Orders', false],
-  ['/admin/products', 'Products', false],
-  ['/admin/categories', 'Categories', false],
-  ['/admin/customers', 'Customers', false],
-  ['/admin/activity', 'Activity', false],
-  ['/admin/settings', 'Settings', false],
-  ['/admin/test-lab', 'Test lab', false],
-] as const;
-
+/** Owner navigation now lives in the sidebar, so this just shows the page. */
 export default function AdminLayout() {
-  return (
-    <>
-      <nav className="admin-nav">
-        {tabs.map(([to, label, end]) => <NavLink key={to} to={to} end={end}>{label}</NavLink>)}
-      </nav>
-      <Outlet />
-    </>
-  );
+  return <Outlet />;
 }
