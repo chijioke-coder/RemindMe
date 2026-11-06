@@ -52,8 +52,7 @@ svg { flex: none; }
 .grow { flex: 1 1 0; min-width: 0; }
 .stack > * + * { margin-top: 14px; }
 .stack-s > * + * { margin-top: 8px; }
-.only-mobile { display: grid; }
-.only-desktop { display: none; }
+.only-desktop { display: none !important; }
 
 /* ---------- app shell: sidebar + main ---------- */
 .app { min-height: 100vh; }
@@ -106,8 +105,8 @@ svg { flex: none; }
 .foot a { color: var(--ink); font-weight: 600; }
 
 @media (min-width: 1024px) {
-  .only-mobile { display: none; }
-  .only-desktop { display: grid; }
+  .only-mobile { display: none !important; }
+  .only-desktop { display: grid !important; }
   .sidebar { transform: none; width: var(--sb-w); }
   .nav-scrim { display: none; }
   .main { margin-left: var(--sb-w); transition: margin-left .22s ease; }
@@ -304,3 +303,9 @@ textarea.in { min-height: 90px; resize: vertical; }
 /* rows that link to an order */
 .order-row { color: inherit; }
 .order-row:hover { background: #f8fafb; }
+
+/* owner dashboard tabs (as before) */
+.admin-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; position: sticky; top: var(--topbar-h); z-index: 30; background: var(--mist); padding: 8px var(--gutter); margin-inline: calc(var(--gutter) * -1); }
+.admin-nav::-webkit-scrollbar { display: none; }
+.admin-nav a { flex: none; padding: 9px 16px; border-radius: 999px; font-weight: 700; color: var(--ink-2); background: #fff; border: 1.5px solid var(--line); }
+.admin-nav a.active { background: var(--ink); color: #fff; border-color: var(--ink); }
