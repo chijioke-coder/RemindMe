@@ -16,17 +16,6 @@ const MAIN: Nav[] = [
   { to: '/support', label: 'Support', icon: 'help' },
 ];
 
-const OWNER: Nav[] = [
-  { to: '/admin', label: 'Overview', icon: 'grid', end: true },
-  { to: '/admin/orders', label: 'Orders', icon: 'package' },
-  { to: '/admin/products', label: 'Products', icon: 'tag' },
-  { to: '/admin/categories', label: 'Categories', icon: 'layers' },
-  { to: '/admin/customers', label: 'Customers', icon: 'users' },
-  { to: '/admin/referrals', label: 'Referrals & promos', icon: 'gift' },
-  { to: '/admin/activity', label: 'Activity', icon: 'activity' },
-  { to: '/admin/settings', label: 'Settings', icon: 'sliders' },
-  { to: '/admin/test-lab', label: 'Test lab', icon: 'zap' },
-];
 
 export default function Layout() {
   const { profile, balanceKobo, settings, signOut, session } = useAuth();
@@ -64,12 +53,7 @@ export default function Layout() {
 
         <nav className="sb-nav">
           {MAIN.filter((n) => !n.auth || session).map(item)}
-          {profile?.role === 'admin' && (
-            <>
-              <div className="sb-section">Owner</div>
-              {OWNER.map(item)}
-            </>
-          )}
+          {profile?.role === 'admin' && item({ to: '/admin', label: 'Owner dashboard', icon: 'grid' })}
         </nav>
 
         <div className="sb-foot">
