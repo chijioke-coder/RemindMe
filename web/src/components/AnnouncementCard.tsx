@@ -1,19 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../lib/auth';
 import Icon from './Icon';
+
+// Remembered only until the page is reloaded, so the card comes back every time the site is opened afresh.
+let dismissedText = '';
 
 /** The owner's announcement, shown as a card on Home and My account instead of a banner on every page. */
 export default function AnnouncementCard() {
   const { settings } = useAuth();
   const text = settings?.announcement?.trim() ?? '';
-  const key = text ? `pabs_ann_${text.length}_${text.slice(0, 16)}` : '';
-  const [hidden, setHidden] = useState(false);
+  const [, rerender] = useState(0);
 
-  useEffect(() => {
-    try { setHidden(key ? localStorage.getItem(key) === '1' : false); } catch { setHidden(false); }
-  }, [key]);
-
-  if (!text || hidden) return null;
+  if (!text || dismissedText === text) return null;
 
   const m = text.match(/https?:\/\/\S+/);
   const url = m ? m[0].replace(/[.,;:!?)]+$/, '') : null;
@@ -28,7 +26,7 @@ export default function AnnouncementCard() {
         <p>{body || text}</p>
       </div>
       {url && <a className="btn sm gold" href={url} target="_blank" rel="noreferrer">{label}</a>}
-      <button className="x" aria-label="Dismiss" onClick={() => { try { localStorage.setItem(key, '1'); } catch { /* ignore */ } setHidden(true); }}><Icon name="x" size={18} /></button>
+      <button className="x" aria-label="Close" onClick={() => { dismissedText = text; rerender((n) => n + 1); }}><Icon name="x" size={18} /></button>
     </div>
   );
 }
