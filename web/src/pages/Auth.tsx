@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { naira } from '../lib/format';
+import Icon from '../components/Icon';
 
 export default function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const nav = useNavigate();
@@ -10,6 +11,7 @@ export default function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const from = (loc.state as { from?: string } | null)?.from ?? '/account';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState('');
   const [code, setCode] = useState(() => {
     try { return (params.get('ref') ?? localStorage.getItem('pabs_ref') ?? '').toUpperCase(); } catch { return ''; }
@@ -66,7 +68,15 @@ export default function Auth({ mode }: { mode: 'login' | 'signup' }) {
         <label className="f"><span>Full name</span><input className="in" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
       )}
       <label className="f"><span>Email</span><input className="in" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
-      <label className="f"><span>Password</span><input className="in" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
+      <label className="f"><span>Password</span>
+        <div style={{ position: 'relative' }}>
+          <input className="in" style={{ paddingRight: 52 }} type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+          <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Hide password' : 'Show password'} title={showPw ? 'Hide password' : 'Show password'}
+            style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, border: 0, background: 'transparent', color: 'var(--mute)', display: 'grid', placeItems: 'center', cursor: 'pointer', borderRadius: 10 }}>
+            <Icon name={showPw ? 'eye-off' : 'eye'} />
+          </button>
+        </div>
+      </label>
       {mode === 'signup' && (
         <label className="f"><span>Invite or promo code (optional)</span>
           <input className="in" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onBlur={(e) => void checkCode(e.target.value)} autoCapitalize="characters" /></label>
