@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { callApi } from '../lib/supabase';
+import Linkify from './Linkify';
 
 const isLink = (s: string) => /^https?:\/\/\S+$/i.test(s.trim());
 
@@ -35,8 +36,8 @@ export default function KeyList({ orderId, autoLoad = false }: { orderId: string
     <div className="stack-s">
       {keys.map((k, i) => (
         <div className="keybox" key={i}>
-          <span className="mono">{k}</span>
-          {isLink(k) && <a className="btn sm" href={k} target="_blank" rel="noreferrer">Open</a>}
+          <span className="mono"><Linkify text={k} /></span>
+          {isLink(k) && <a className="btn sm" href={k} target="_blank" rel="noreferrer noopener">Open</a>}
           <button className="btn sm gold" onClick={() => copy(k, i)}>{copied === i ? 'Copied' : 'Copy'}</button>
         </div>
       ))}
