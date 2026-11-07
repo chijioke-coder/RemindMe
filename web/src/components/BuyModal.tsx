@@ -4,12 +4,13 @@ import { callApi, supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { naira } from '../lib/format';
 import ProductIcon from './ProductIcon';
+import Linkify from './Linkify';
 
 export type StoreProduct = {
   id: number; name: string; price_kobo: number; stock: number; category_id: number | null;
   description: string | null; badge: string | null;
   input_label: string | null; delivery_note: string | null; delivery_type: string; track_stock: boolean; pick_items: boolean;
-  icon_path: string | null; delivery_hours: number | null;
+  icon_path: string | null; delivery_hours: number | null; show_quantity: boolean;
 };
 
 export default function BuyModal({ product, onClose }: { product: StoreProduct; onClose: () => void }) {
@@ -31,7 +32,8 @@ export default function BuyModal({ product, onClose }: { product: StoreProduct; 
       .then(({ data }) => setItems((data ?? []) as { id: number; label: string }[]));
   }, [pick, product.id]);
 
-  const count = pick ? picked.length : qty;
+  const askQty = !pick && product.show_quantity !== false;
+  const count = pick ? picked.length : askQty ? qty : 1;
   const toggleItem = (id: number) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < 50 ? [...p, id] : p));
 
@@ -62,14 +64,14 @@ export default function BuyModal({ product, onClose }: { product: StoreProduct; 
           {!busy && <button className="btn sm ghost" onClick={onClose}>Close</button>}
         </div>
 
-        {product.description && <p className="muted small">{product.description}</p>}
+        {product.description && <p className="muted small" style={{ whiteSpace: 'pre-wrap' }}><Linkify text={product.description} /></p>}
         {product.delivery_type === 'manual' && (
           <div className="notice warn small">
             Prepared by hand{product.delivery_hours ? `, usually within ${product.delivery_hours} ${product.delivery_hours === 1 ? 'hour' : 'hours'}` : ''}.
             {product.delivery_note ? ` ${product.delivery_note}` : ''} If it runs late, you can contact support from your order page.
           </div>
         )}
-        {product.delivery_type !== 'manual' && product.delivery_note && <div className="notice warn small">{product.delivery_note}</div>}
+        {product.delivery_type !== 'manual' && product.delivery_note && <div className="notice warn small"><Linkify text={product.delivery_note} /></div>}
 
         <div className="line-item"><span>Price each</span><b>{naira(product.price_kobo)}</b></div>
 
@@ -96,7 +98,7 @@ export default function BuyModal({ product, onClose }: { product: StoreProduct; 
             </div>
             <p className="muted small">{picked.length} selected. Your details appear after payment.</p>
           </div>
-        ) : (
+        ) : askQty ? (
           <div className="line-item">
             <span>Quantity {product.track_stock && <span className="muted small">({product.stock} in stock)</span>}</span>
             <span className="stepper">
@@ -105,7 +107,7 @@ export default function BuyModal({ product, onClose }: { product: StoreProduct; 
               <button disabled={busy || qty >= max} onClick={() => setQty(qty + 1)} aria-label="More">+</button>
             </span>
           </div>
-        )}
+        ) : null}
 
         {needsNote && (
           <label className="f"><span>{product.input_label}</span>
