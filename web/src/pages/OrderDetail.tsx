@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { dateTime, naira, STATUS_LABEL } from '../lib/format';
 import KeyList from '../components/KeyList';
 import Icon from '../components/Icon';
+import Linkify from '../components/Linkify';
 
 type Order = {
   id: string; product_name: string; quantity: number; unit_price_kobo: number; total_kobo: number; status: string;
@@ -71,7 +72,7 @@ export default function OrderDetail() {
           {o.after_message && (done || waiting) && (
             <div className="note-card">
               <h3>A note from the seller</h3>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{o.after_message}</p>
+              <p style={{ whiteSpace: 'pre-wrap' }}><Linkify text={o.after_message} /></p>
             </div>
           )}
 
@@ -89,7 +90,7 @@ export default function OrderDetail() {
                 <div className="timeline"><span className="on">Paid</span><span className="now">Preparing</span><span>Delivered</span></div>
               )}
               {o.due_at && <p className="muted">Expected by <b>{dateTime(o.due_at)}</b>.</p>}
-              {o.owner_note && <div className="notice warn"><b>Update from us:</b> {o.owner_note}</div>}
+              {o.owner_note && <div className="notice warn"><b>Update from us:</b> <Linkify text={o.owner_note} /></div>}
               {overdue && <div className="notice bad">This is taking longer than promised, and we are sorry. Please contact support and we will sort it out.</div>}
               {support && <a className={`btn ${overdue ? 'gold' : 'ghost'}`} href={support} target="_blank" rel="noreferrer">Contact support</a>}
             </div>
