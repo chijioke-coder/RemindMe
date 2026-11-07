@@ -3,6 +3,7 @@ import { callApi, supabase } from '../lib/supabase';
 import { naira } from '../lib/format';
 import { resizeImage, safeName } from '../lib/images';
 import ProductIcon from '../components/ProductIcon';
+import Linkify from '../components/Linkify';
 
 // what a customer would pay: a fixed price, or cost plus markup rounded up to the next ₦10
 const calcPrice = (costKobo: number, markup: string | number, override: string | number, defaultMarkup: number) => {
@@ -15,6 +16,7 @@ const EMPTY_OWN = {
   name: '', category_id: '', delivery_type: 'stock', price_naira: '', cost_naira: '',
   description: '', badge: '', input_label: '', delivery_note: '', pick_items: false, after_message: '',
   delivery_hours: '24', iconFile: null as File | null,
+  show_quantity: true, shared_text: '', sharedFiles: [] as File[],
 };
 
 export default function AdminProducts() {
@@ -29,6 +31,11 @@ export default function AdminProducts() {
   const [stockFor, setStockFor] = useState<any | null>(null);
   const [stockText, setStockText] = useState('');
   const [stockTab, setStockTab] = useState<'lines' | 'link' | 'file'>('lines');
+  const [sharedFor, setSharedFor] = useState<any | null>(null);
+  const [sharedText, setSharedText] = useState('');
+  const [sharedFiles, setSharedFiles] = useState<{ id: number; name: string }[]>([]);
+  const [sharedNew, setSharedNew] = useState<File[]>([]);
+  const [sharedLoading, setSharedLoading] = useState(false);
   const [fLabel, setFLabel] = useState('');
   const [fDetails, setFDetails] = useState('');
   const [fFile, setFFile] = useState<File | null>(null);
@@ -148,7 +155,7 @@ export default function AdminProducts() {
       delivery_hours: e.delivery_type === 'manual' ? Number(e.delivery_hours) : null,
       sort_order: Number(e.sort_order) || 0,
       pick_items: e.delivery_type === 'stock' ? !!e.pick_items : false,
-      ...(e.source === 'own' ? { upstream_price_kobo: Math.round(Number(e.cost_naira || 0) * 100) } : {}),
+      ...(e.source === 'own' ? { upstream_price_kobo: Math.round(Number(e.cost_naira || 0) * 100), show_quantity: e.pick_items ? true : e.show_quantity !== false } : {}),
     }).eq('id', e.id);
     setBusy(false);
     if (error) return setMsg({ kind: 'bad', text: error.message });
@@ -163,11 +170,15 @@ export default function AdminProducts() {
     if (!o.name.trim()) return setMsg({ kind: 'bad', text: 'Give the product a name.' });
     if (!(price > 0)) return setMsg({ kind: 'bad', text: 'Enter the price customers will pay.' });
     if (o.delivery_type === 'manual' && !(Number(o.delivery_hours) >= 1)) return setMsg({ kind: 'bad', text: 'Say how many hours you need to deliver this service.' });
+    if (o.delivery_type === 'unlimited' && !o.shared_text.trim() && o.sharedFiles.length === 0) {
+      return setMsg({ kind: 'bad', text: 'Add the link, text or file that every buyer will receive.' });
+    }
     setBusy(true);
     const { data, error } = await supabase.from('products').insert({
       source: 'own',
       delivery_type: o.delivery_type,
       track_stock: o.delivery_type === 'stock',
+      show_quantity: o.delivery_type === 'stock' && o.pick_items ? true : !!o.show_quantity,
       pick_items: o.delivery_type === 'stock' && !!o.pick_items,
       upstream_product_id: null,
       upstream_name: o.name.trim(),
@@ -188,12 +199,23 @@ export default function AdminProducts() {
     if (o.iconFile) {
       try { await uploadIcon({ id: data.id, icon_path: null }, o.iconFile); } catch (e: any) { iconNote = ` The icon could not be uploaded (${e?.message ?? 'error'}); add it with Edit.`; }
     }
+    if (o.delivery_type === 'unlimited') {
+      try {
+        const r = await callApi<any>('set_shared_text', { product_id: data.id, text: o.shared_text });
+        if (!r.ok) throw new Error(r.detail || 'Could not save the content.');
+        await uploadSharedFiles(data.id, o.sharedFiles);
+      } catch (e: any) {
+        iconNote += ` The content could not be saved (${e?.message ?? 'error'}); open Edit content on the product.`;
+      }
+    }
     setBusy(false);
     setOwn(null);
     setMsg({
       kind: iconNote ? 'warn' : 'good',
       text: (o.delivery_type === 'stock'
         ? 'Product created. Tap "Add stock" on it to upload the items you are selling.'
+        : o.delivery_type === 'unlimited'
+        ? 'Product created. Every buyer receives the content you added, and it never runs out.'
         : 'Service created and live on the store. Paid orders will appear for you to deliver.') + iconNote,
     });
     await load();
@@ -249,6 +271,51 @@ export default function AdminProducts() {
     setBusy(false);
   }
 
+  // ---- content every buyer of a same-for-everyone product receives ----
+  async function uploadSharedFiles(productId: number, files: File[]) {
+    for (const f of files) {
+      const path = `shared/${productId}/${crypto.randomUUID()}-${safeName(f.name)}`;
+      const up = await supabase.storage.from('delivery-files').upload(path, f, { contentType: f.type || undefined });
+      if (up.error) throw new Error(`Could not upload ${f.name}: ${up.error.message}`);
+      const r = await callApi<any>('add_shared_file', { product_id: productId, file_path: path, file_name: f.name });
+      if (!r.ok) {
+        await supabase.storage.from('delivery-files').remove([path]);
+        throw new Error(r.detail || 'Could not save the file.');
+      }
+    }
+  }
+
+  async function openShared(p: any) {
+    setSharedFor(p); setSharedText(''); setSharedFiles([]); setSharedNew([]); setSharedLoading(true);
+    const r = await callApi<any>('get_shared', { product_id: p.id });
+    setSharedLoading(false);
+    if (r.ok) { setSharedText(r.text); setSharedFiles(r.files); } else setMsg({ kind: 'bad', text: r.detail || 'Could not load the content.' });
+  }
+
+  async function saveShared() {
+    if (!sharedText.trim() && sharedFiles.length === 0 && sharedNew.length === 0) {
+      return setMsg({ kind: 'bad', text: 'Add a link, some text or a file for buyers to receive.' });
+    }
+    setBusy(true);
+    try {
+      const r = await callApi<any>('set_shared_text', { product_id: sharedFor.id, text: sharedText });
+      if (!r.ok) throw new Error(r.detail || 'Could not save the text.');
+      await uploadSharedFiles(sharedFor.id, sharedNew);
+      setMsg({ kind: 'good', text: 'Content saved. New buyers receive it straight away. People who already bought keep what they received.' });
+      setSharedFor(null);
+    } catch (e: any) {
+      setMsg({ kind: 'bad', text: e?.message ?? 'Could not save.' });
+    }
+    setBusy(false);
+  }
+
+  async function removeSharedFile(id: number) {
+    if (!confirm('Remove this file? New buyers will no longer receive it.')) return;
+    const r = await callApi<any>('remove_shared_file', { file_id: id });
+    if (!r.ok) return setMsg({ kind: 'bad', text: r.detail || 'Could not remove it.' });
+    setSharedFiles((fs) => fs.filter((f) => f.id !== id));
+  }
+
   async function openStockView(p: any) {
     setViewStock(p);
     setStockRows([]);
@@ -290,7 +357,7 @@ export default function AdminProducts() {
     (show === 'all' || (show === 'active') === p.is_active) &&
     (!q || (p.display_name || p.upstream_name).toLowerCase().includes(q.toLowerCase())));
 
-  const kindLabel = (p: any) => (p.source !== 'own' ? 'Supplier' : p.delivery_type === 'stock' ? 'Own · instant stock' : 'Own · you deliver');
+  const kindLabel = (p: any) => (p.source !== 'own' ? 'Supplier' : p.delivery_type === 'stock' ? 'Own · instant stock' : p.delivery_type === 'unlimited' ? 'Own · same for everyone' : 'Own · you deliver');
 
   return (
     <>
@@ -351,6 +418,7 @@ export default function AdminProducts() {
               <button className="btn sm ghost" onClick={() => openEdit(p)}>Edit</button>
               {p.delivery_type === 'stock' && <button className="btn sm gold" onClick={() => { setStockFor(p); setStockText(''); setStockTab('lines'); }}>Add stock</button>}
               {p.delivery_type === 'stock' && <button className="btn sm ghost" onClick={() => openStockView(p)}>View stock</button>}
+              {p.delivery_type === 'unlimited' && <button className="btn sm gold" onClick={() => openShared(p)}>Edit content</button>}
               <button className="btn sm ghost" onClick={() => remove(p)}>Delete</button>
             </div>
           </div>
@@ -407,6 +475,9 @@ export default function AdminProducts() {
             {edit.delivery_type === 'manual' && (
               <label className="f"><span>Promised delivery time (hours)</span><input className="in" inputMode="numeric" value={edit.delivery_hours} onChange={(e) => setEdit({ ...edit, delivery_hours: e.target.value })} /></label>
             )}
+            {edit.source === 'own' && !edit.pick_items && (
+              <label className="check"><input type="checkbox" checked={edit.show_quantity !== false} onChange={(e) => setEdit({ ...edit, show_quantity: e.target.checked })} /> Show the quantity picker{edit.track_stock ? ' and the "available" count' : ''} to customers</label>
+            )}
             <div className="grid2">
               <label className="f"><span>Badge (e.g. Hot)</span><input className="in" value={edit.badge} onChange={(e) => setEdit({ ...edit, badge: e.target.value })} /></label>
               <label className="f"><span>Sort order</span><input className="in" inputMode="numeric" value={edit.sort_order} onChange={(e) => setEdit({ ...edit, sort_order: e.target.value })} /></label>
@@ -429,12 +500,15 @@ export default function AdminProducts() {
           <div className="sheet stack">
             <h2>Add my own product</h2>
             <div className="chips">
-              <button className={`chip ${own.delivery_type === 'stock' ? 'on' : ''}`} onClick={() => setOwn({ ...own, delivery_type: 'stock' })}>Instant stock</button>
-              <button className={`chip ${own.delivery_type === 'manual' ? 'on' : ''}`} onClick={() => setOwn({ ...own, delivery_type: 'manual' })}>I deliver by hand</button>
+              <button className={`chip ${own.delivery_type === 'stock' ? 'on' : ''}`} onClick={() => setOwn({ ...own, delivery_type: 'stock', show_quantity: true })}>Instant stock</button>
+              <button className={`chip ${own.delivery_type === 'unlimited' ? 'on' : ''}`} onClick={() => setOwn({ ...own, delivery_type: 'unlimited', show_quantity: false, pick_items: false })}>Same for everyone</button>
+              <button className={`chip ${own.delivery_type === 'manual' ? 'on' : ''}`} onClick={() => setOwn({ ...own, delivery_type: 'manual', show_quantity: true, pick_items: false })}>I deliver by hand</button>
             </div>
             <p className="muted small">
               {own.delivery_type === 'stock'
                 ? 'Every item is unique (an account, a login, a link or a file). Each purchase delivers the next unsold items automatically, one per quantity. This product keeps its own stock, separate from every other product.'
+                : own.delivery_type === 'unlimited'
+                ? 'One listing that never runs out. Every buyer receives the same link, text or files you add here. Nothing is used up, so there is no stock count.'
                 : 'For services such as followers or custom work. The customer pays, the order appears in your dashboard with a countdown, and you deliver a message, links or files. The customer can contact support if you run late.'}
             </p>
             <label className="f"><span>Product name</span><input className="in" value={own.name} onChange={(e) => setOwn({ ...own, name: e.target.value })} /></label>
@@ -448,6 +522,14 @@ export default function AdminProducts() {
               <label className="f"><span>Price customers pay (₦)</span><input className="in" inputMode="decimal" value={own.price_naira} onChange={(e) => setOwn({ ...own, price_naira: e.target.value })} /></label>
               <label className="f"><span>Your cost per item (₦, optional)</span><input className="in" inputMode="decimal" value={own.cost_naira} onChange={(e) => setOwn({ ...own, cost_naira: e.target.value })} /></label>
             </div>
+            {own.delivery_type === 'unlimited' && (
+              <>
+                <label className="f"><span>Link(s) or text every buyer receives (one per line)</span>
+                  <textarea className="in" style={{ minHeight: 110 }} value={own.shared_text} onChange={(e) => setOwn({ ...own, shared_text: e.target.value })} placeholder="https://your-link-here" /></label>
+                <label className="f"><span>Files every buyer can download (optional, up to 50 MB each)</span>
+                  <input className="in" type="file" multiple onChange={(e) => setOwn({ ...own, sharedFiles: Array.from(e.target.files ?? []) })} /></label>
+              </>
+            )}
             {own.delivery_type === 'manual' && (
               <label className="f"><span>Promised delivery time (hours)</span><input className="in" inputMode="numeric" value={own.delivery_hours} onChange={(e) => setOwn({ ...own, delivery_hours: e.target.value })} /></label>
             )}
@@ -457,6 +539,9 @@ export default function AdminProducts() {
             <label className="f"><span>Short note shown before buying (optional, e.g. “Do not change your username until delivery”)</span><input className="in" value={own.delivery_note} onChange={(e) => setOwn({ ...own, delivery_note: e.target.value })} /></label>
             {own.delivery_type === 'stock' && (
               <label className="check"><input type="checkbox" checked={!!own.pick_items} onChange={(e) => setOwn({ ...own, pick_items: e.target.checked })} /> Let customers choose which item they buy (like a list of numbers or accounts)</label>
+            )}
+            {!(own.delivery_type === 'stock' && own.pick_items) && (
+              <label className="check"><input type="checkbox" checked={!!own.show_quantity} onChange={(e) => setOwn({ ...own, show_quantity: e.target.checked })} /> Show the quantity picker{own.delivery_type === 'stock' ? ' and the "available" count' : ''} to customers</label>
             )}
             <label className="f"><span>Badge (optional)</span><input className="in" value={own.badge} onChange={(e) => setOwn({ ...own, badge: e.target.value })} /></label>
             <div className="row"><button className="btn grow" disabled={busy} onClick={createOwn}>{busy ? 'Saving…' : 'Create product'}</button><button className="btn ghost" disabled={busy} onClick={() => setOwn(null)}>Cancel</button></div>
@@ -517,6 +602,41 @@ export default function AdminProducts() {
         </div>
       )}
 
+      {sharedFor && (
+        <div className="scrim" onClick={(e) => e.target === e.currentTarget && !busy && setSharedFor(null)}>
+          <div className="sheet stack">
+            <h2>Content every buyer receives</h2>
+            <p className="muted small">{sharedFor.display_name || sharedFor.upstream_name} · sold again and again, nothing runs out</p>
+            {sharedLoading ? <p className="muted">Loading…</p> : (
+              <>
+                <label className="f"><span>Link(s) or text (one per line)</span>
+                  <textarea className="in" style={{ minHeight: 120 }} value={sharedText} onChange={(e) => setSharedText(e.target.value)} placeholder="https://your-link-here" /></label>
+                {sharedText.trim() && <p className="muted small">Buyers see: <Linkify text={sharedText.split('\n')[0]} /></p>}
+                {sharedFiles.length > 0 && (
+                  <div className="stack-s">
+                    <b className="small">Files buyers can download</b>
+                    {sharedFiles.map((f) => (
+                      <div key={f.id} className="row between">
+                        <span className="small">📎 {f.name}</span>
+                        <button className="btn sm ghost" disabled={busy} onClick={() => removeSharedFile(f.id)}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label className="f"><span>Add files (up to 50 MB each)</span>
+                  <input className="in" type="file" multiple onChange={(e) => setSharedNew(Array.from(e.target.files ?? []))} /></label>
+                {sharedNew.length > 0 && <p className="muted small">{sharedNew.map((f) => `${f.name} (${(f.size / 1048576).toFixed(1)} MB)`).join(' · ')}</p>}
+                <div className="row">
+                  <button className="btn grow" disabled={busy} onClick={saveShared}>{busy ? 'Saving…' : 'Save content'}</button>
+                  <button className="btn ghost" disabled={busy} onClick={() => setSharedFor(null)}>Close</button>
+                </div>
+                <p className="muted small">New buyers get the latest content straight away. People who already bought keep what they received.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {viewStock && (
         <div className="scrim" onClick={(e) => e.target === e.currentTarget && setViewStock(null)}>
           <div className="sheet stack">
@@ -531,7 +651,7 @@ export default function AdminProducts() {
                     <div className="row between">
                       <div className="grow">
                         {r.label && <b>{r.label}</b>}
-                        {r.details && <div className="mono small">{r.details}</div>}
+                        {r.details && <div className="mono small"><Linkify text={r.details} /></div>}
                         {r.file_name && <div className="small">📎 {r.file_name}</div>}
                       </div>
                       <span className={`badge ${r.status === 'available' ? 'on' : 'off'}`}>{r.status === 'available' ? 'Available' : 'Sold'}</span>
