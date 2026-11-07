@@ -309,3 +309,10 @@ textarea.in { min-height: 90px; resize: vertical; }
 .admin-nav::-webkit-scrollbar { display: none; }
 .admin-nav a { flex: none; padding: 9px 16px; border-radius: 999px; font-weight: 700; color: var(--ink-2); background: #fff; border: 1.5px solid var(--line); }
 .admin-nav a.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* links inside delivered details and seller notes */
+.keybox a:not(.btn) { color: var(--gold); text-decoration: underline; }
+.note-card a, .notice a, .panel p a { text-decoration: underline; }
+
+/* delivered items keep their line breaks and spacing, exactly as the seller sent them */
+.keybox .mono { white-space: pre-wrap; }
