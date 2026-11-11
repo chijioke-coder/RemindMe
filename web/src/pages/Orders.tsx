@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { callApi, supabase } from '../lib/supabase';
 import { dateTime, naira, STATUS_LABEL } from '../lib/format';
 
 type Order = {
@@ -13,7 +13,11 @@ export default function Orders() {
 
   useEffect(() => {
     const load = () => supabase.from('my_orders').select('*').order('created_at', { ascending: false }).limit(100)
-      .then(({ data }) => setOrders((data ?? []) as Order[]));
+      .then(({ data }) => {
+        const rows = (data ?? []) as Order[];
+        setOrders(rows);
+        rows.filter((o) => o.delivery_type === 'sms' && o.status === 'processing').forEach((o) => { void callApi('sms_check', { order_id: o.id }); });
+      });
     void load();
     const timer = setInterval(load, 10000); // pick up deliveries without a reload
     return () => clearInterval(timer);
