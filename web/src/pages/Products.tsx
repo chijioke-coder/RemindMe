@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import type { StoreProduct } from '../components/BuyModal';
 import ProductBoard, { type StoreCategory } from '../components/ProductBoard';
 
 export default function Products() {
   const [params, setParams] = useSearchParams();
+  const { settings } = useAuth();
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ export default function Products() {
         {categories.map((c) => (
           <button key={c.id} className={`chip ${cat === String(c.id) ? 'on' : ''}`} onClick={() => setParams({ cat: String(c.id) })}>{c.name}</button>
         ))}
+        {(settings as unknown as { sms_show?: boolean } | null)?.sms_show && <Link to="/numbers" className="chip">Virtual numbers</Link>}
       </div>
       {loading ? <p className="muted">Loading products…</p> : <ProductBoard products={shown} categories={categories} />}
     </>
