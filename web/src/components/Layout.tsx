@@ -4,11 +4,12 @@ import { useAuth } from '../lib/auth';
 import { naira } from '../lib/format';
 import Icon from './Icon';
 
-type Nav = { to: string; label: string; icon: string; end?: boolean; auth?: boolean };
+type Nav = { to: string; label: string; icon: string; end?: boolean; auth?: boolean; sms?: boolean };
 
 const MAIN: Nav[] = [
   { to: '/', label: 'Home', icon: 'home', end: true },
   { to: '/products', label: 'Store', icon: 'store' },
+  { to: '/numbers', label: 'Virtual numbers', icon: 'phone', sms: true },
   { to: '/account', label: 'My account', icon: 'user', auth: true },
   { to: '/orders', label: 'Orders', icon: 'package', auth: true },
   { to: '/wallet', label: 'Wallet', icon: 'wallet', auth: true },
@@ -52,7 +53,7 @@ export default function Layout() {
         </div>
 
         <nav className="sb-nav">
-          {MAIN.filter((n) => !n.auth || session).map(item)}
+          {MAIN.filter((n) => (!n.auth || session) && (!n.sms || (settings as unknown as { sms_show?: boolean } | null)?.sms_show)).map(item)}
           {profile?.role === 'admin' && item({ to: '/admin', label: 'Owner dashboard', icon: 'grid' })}
         </nav>
 
