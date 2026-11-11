@@ -7,6 +7,7 @@ const tabs: [string, string, boolean][] = [
   ['/admin/categories', 'Categories', false],
   ['/admin/customers', 'Customers', false],
   ['/admin/referrals', 'Referrals', false],
+  ['/admin/numbers', 'Numbers', false],
   ['/admin/activity', 'Activity', false],
   ['/admin/settings', 'Settings', false],
   ['/admin/test-lab', 'Test lab', false],
