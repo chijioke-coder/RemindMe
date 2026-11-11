@@ -10,6 +10,8 @@ import Orders from './pages/Orders';
 import Support from './pages/Support';
 import Account from './pages/Account';
 import OrderDetail from './pages/OrderDetail';
+import Numbers from './pages/Numbers';
+import AdminNumbers from './admin/AdminNumbers';
 import Referrals from './pages/Referrals';
 import AdminLayout from './admin/AdminLayout';
 import Overview from './admin/Overview';
@@ -45,6 +47,7 @@ export default function App() {
         <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
         <Route path="orders" element={<RequireAuth><Orders /></RequireAuth>} />
         <Route path="orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+        <Route path="numbers" element={<Numbers />} />
         <Route path="referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
         <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
           <Route index element={<Overview />} />
@@ -53,6 +56,7 @@ export default function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="referrals" element={<AdminReferrals />} />
+          <Route path="numbers" element={<AdminNumbers />} />
           <Route path="activity" element={<AdminActivity />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="test-lab" element={<TestLab />} />
