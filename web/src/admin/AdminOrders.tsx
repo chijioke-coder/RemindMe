@@ -159,7 +159,7 @@ export default function AdminOrders() {
               {(open === o.id || (status === 'to_deliver')) && (
                 <div className="stack-s">
                   <div className="muted small">
-                    Order {o.id.slice(0, 8)} · {o.delivery_type === 'supplier' ? `Supplier order ${o.upstream_order_id ?? '—'}` : o.delivery_type === 'stock' ? 'Your stock' : 'Delivered by you'}
+                    Order {o.id.slice(0, 8)} · {o.delivery_type === 'supplier' ? `Supplier order ${o.upstream_order_id ?? '—'}` : o.delivery_type === 'stock' ? 'Your stock' : o.delivery_type === 'sms' ? `5sim number${o.sms_phone ? ` ${o.sms_phone}` : ''}` : 'Delivered by you'}
                     {' · '}Cost {cost != null ? naira(cost) : '—'}{cost != null && ` · Profit ${naira(o.total_kobo - cost)}`}
                   </div>
                   {o.customer_note && <div className="notice good"><b>Customer details:</b> {o.customer_note}</div>}
