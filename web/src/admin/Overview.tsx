@@ -21,7 +21,13 @@ export default function Overview() {
     setSettings(b.data);
     setRecent(c.data ?? []);
   }
-  useEffect(() => { void load(); }, []);
+  const [cover, setCover] = useState<{ rows: any[] } | null>(null);
+  useEffect(() => {
+    void load();
+    void callApi('cron_register'); // lets the 10-minute timer find this site (safe to repeat)
+    supabase.from('products').select('upstream_price_kobo, stock').eq('source', 'supplier').eq('is_active', true).eq('upstream_missing', false)
+      .then(({ data }) => setCover({ rows: data ?? [] }));
+  }, []);
 
   async function checkBalance() {
     setBusy(true); setErr('');
@@ -59,9 +65,13 @@ export default function Overview() {
         <div className="stat"><div className="muted small">Orders done</div><div className="v">{s.orders_completed}</div></div>
         <div className="stat"><div className="muted small">Failed or refunded</div><div className="v">{s.orders_failed}</div></div>
         <div className="stat"><div className="muted small">Customer wallets (owed)</div><div className="v">{naira(s.wallet_liability_kobo)}</div></div>
-        <div className={`stat ${settings && settings.upstream_balance_kobo != null && settings.upstream_balance_kobo < settings.low_balance_threshold_kobo ? 'alert' : ''}`}>
+        <div className={`stat ${settings?.alert?.startsWith('Supplier') ? 'alert' : ''}`}>
           <div className="muted small">Supplier wallet</div>
           <div className="v">{settings?.upstream_balance_kobo != null ? naira(settings.upstream_balance_kobo) : '—'}</div>
+          {settings?.upstream_balance_kobo != null && cover && (() => {
+            const can = cover.rows.filter((r) => r.stock > 0 && r.upstream_price_kobo > 0 && r.upstream_price_kobo <= Number(settings.upstream_balance_kobo)).length;
+            return <div className="muted small">Covers {can} of {cover.rows.length} products on sale</div>;
+          })()}
           <button className="btn sm ghost" style={{ marginTop: 8 }} disabled={busy} onClick={checkBalance}>{busy ? 'Checking…' : 'Check now'}</button>
         </div>
       </div>

@@ -17,6 +17,7 @@ export default function AdminSettings() {
       site_name: s.site_name,
       default_markup_percent: Number(s.default_markup_percent) || 0,
       purchases_paused: s.purchases_paused,
+      auto_paused: false,
       pause_reason: s.pause_reason || null,
       announcement: s.announcement || null,
       support_whatsapp: s.support_whatsapp || null,

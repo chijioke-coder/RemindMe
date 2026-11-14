@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 import { naira } from '../lib/format';
 import Icon from './Icon';
 
@@ -30,6 +31,7 @@ export default function Layout() {
   const wa = settings?.support_whatsapp?.replace(/\D/g, '');
 
   useEffect(() => { setDrawer(false); }, [loc.pathname]);
+  useEffect(() => { void supabase.functions.invoke('api', { body: { action: 'maybe_sync' } }); }, []);
 
   function toggleCollapse() {
     const next = !collapsed;

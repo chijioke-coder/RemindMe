@@ -21,14 +21,14 @@ export default function ProductBoard({ title, products, categories }: { title?: 
         {title && <div className="board-head">{title}</div>}
         {products.map((p) => {
           const pct = Math.min(100, Math.round((p.stock / 60) * 100));
-          const tracked = p.track_stock;
+          const tracked = p.track_stock && p.show_quantity !== false;
           const out = p.stock <= 0;
           return (
             <div className="item" key={p.id}>
               <ProductIcon path={p.icon_path} label={catName(p.category_id) || p.name} seed={p.category_id ?? p.id} />
               <div className="grow">
                 <div className="name">{p.name} {p.badge && <span className="badge hot">{p.badge}</span>}</div>
-                <div className="muted small">{catName(p.category_id)} · {out ? 'Out of stock' : tracked ? `${p.stock} in stock` : 'Available'}</div>
+                <div className="muted small">{catName(p.category_id)} · {out ? (p.funds_limited ? 'Temporarily unavailable' : 'Out of stock') : tracked ? `${p.stock} in stock` : 'Available'}</div>
                 {tracked && <div className={`gauge ${p.stock < 8 ? 'low' : ''}`}><i style={{ width: `${out ? 0 : Math.max(pct, 6)}%` }} /></div>}
               </div>
               <div className="price">{naira(p.price_kobo)}</div>
@@ -37,7 +37,7 @@ export default function ProductBoard({ title, products, categories }: { title?: 
                 disabled={out || settings?.purchases_paused}
                 onClick={() => (session ? setSelected(p) : nav('/login', { state: { from: '/products' } }))}
               >
-                {out ? 'Sold out' : 'Buy now'}
+                {out ? (p.funds_limited ? 'Unavailable' : 'Sold out') : 'Buy now'}
               </button>
             </div>
           );

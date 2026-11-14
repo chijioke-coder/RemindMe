@@ -26,12 +26,12 @@ export default function ProductRail({ products, categories, grouped = true, layo
           <ProductIcon path={p.icon_path} label={p.name} seed={p.category_id ?? p.id} size={46} />
           <div className="grow">
             <div className="name">{p.name}</div>
-            <div className="muted small">{out ? 'Sold out' : p.track_stock ? `${p.stock} available` : p.delivery_hours ? `Ready in about ${p.delivery_hours}h` : 'Available'}</div>
+            <div className="muted small">{out ? (p.funds_limited ? 'Temporarily unavailable' : 'Sold out') : p.track_stock && p.show_quantity !== false ? `${p.stock} available` : p.delivery_hours ? `Ready in about ${p.delivery_hours}h` : 'Available'}</div>
           </div>
         </div>
         <div className="row between">
           <span className="price">{naira(p.price_kobo)}</span>
-          <button className="btn sm" disabled={out || settings?.purchases_paused} onClick={() => open(p)}>{out ? 'Sold out' : 'Buy'}</button>
+          <button className="btn sm" disabled={out || settings?.purchases_paused} onClick={() => open(p)}>{out ? (p.funds_limited ? 'Unavailable' : 'Sold out') : 'Buy'}</button>
         </div>
       </div>
     );

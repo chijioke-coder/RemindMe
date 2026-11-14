@@ -10,7 +10,7 @@ export type StoreProduct = {
   id: number; name: string; price_kobo: number; stock: number; category_id: number | null;
   description: string | null; badge: string | null;
   input_label: string | null; delivery_note: string | null; delivery_type: string; track_stock: boolean; pick_items: boolean;
-  icon_path: string | null; delivery_hours: number | null; show_quantity: boolean;
+  icon_path: string | null; delivery_hours: number | null; show_quantity: boolean; funds_limited?: boolean;
 };
 
 export default function BuyModal({ product, onClose }: { product: StoreProduct; onClose: () => void }) {

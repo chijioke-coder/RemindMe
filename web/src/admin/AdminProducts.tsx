@@ -47,6 +47,7 @@ export default function AdminProducts() {
   const [bulkCat, setBulkCat] = useState('');
   const [bulkPct, setBulkPct] = useState('');
   const [busy, setBusy] = useState(false);
+  const [wallet, setWallet] = useState<{ bal: number | null; at: string | null; note: string | null }>({ bal: null, at: null, note: null });
   const [msg, setMsg] = useState<{ kind: string; text: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -54,11 +55,14 @@ export default function AdminProducts() {
     const [p, c, s] = await Promise.all([
       supabase.from('products').select('*').order('id', { ascending: false }),
       supabase.from('categories').select('*').order('sort_order'),
-      supabase.from('app_settings').select('default_markup_percent').eq('id', 1).single(),
+      supabase.from('app_settings').select('default_markup_percent, upstream_balance_kobo, last_sync_at, last_sync_note').eq('id', 1).single(),
     ]);
     setProducts(p.data ?? []);
     setCats(c.data ?? []);
-    if (s.data) setDefaultMarkup(Number(s.data.default_markup_percent));
+    if (s.data) {
+      setDefaultMarkup(Number(s.data.default_markup_percent));
+      setWallet({ bal: s.data.upstream_balance_kobo, at: s.data.last_sync_at, note: s.data.last_sync_note });
+    }
   }
   useEffect(() => { void load(); }, []);
 
@@ -368,6 +372,7 @@ export default function AdminProducts() {
           <button className="btn" disabled={syncing} onClick={sync}>{syncing ? 'Syncing…' : 'Sync from supplier'}</button>
         </div>
       </div>
+      <p className="muted small">Auto-sync every 10 minutes{wallet.at ? ` · last ran ${new Date(wallet.at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}${wallet.note ? ` (${wallet.note})` : ''}` : ''}.</p>
       {msg && <div className={`notice ${msg.kind}`}>{msg.text}</div>}
 
       <div className="panel stack">
@@ -413,6 +418,10 @@ export default function AdminProducts() {
               <span className="muted">Cost {naira(p.upstream_price_kobo)}</span>
               <span><b>Price {naira(p.sell_price_kobo)}</b> <span className="muted">({p.price_override_kobo != null ? 'fixed' : `+${p.markup_percent ?? defaultMarkup}%`})</span></span>
               <span className="muted">{p.track_stock ? `Stock ${p.stock}` : p.delivery_hours ? `Delivers in ${p.delivery_hours}h` : 'No stock limit'}</span>
+              {p.source !== 'own' && p.track_stock && wallet.bal != null && p.upstream_price_kobo > 0 && (() => {
+                const n = Math.floor(Number(wallet.bal) / p.upstream_price_kobo);
+                return <span className={`badge ${n > 0 ? 'on' : 'failed'}`}>{n > 0 ? `Supplier wallet covers ${n}` : 'Needs more supplier funds'}</span>;
+              })()}
             </div>
             <div className="row wrap">
               <button className="btn sm ghost" onClick={() => openEdit(p)}>Edit</button>
