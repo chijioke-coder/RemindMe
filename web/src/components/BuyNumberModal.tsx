@@ -44,7 +44,7 @@ export default function BuyNumberModal({ offer, onClose }: { offer: Offer; onClo
         <div className="line-item"><span className="muted">Wallet balance</span><span className={short ? 'amt-minus' : ''}>{naira(balanceKobo)}</span></div>
 
         <div className="notice warn small">
-          You get a number straight away. Enter it on {offer.service_name}, ask for the code, and the code appears on your order page, usually within a minute or two (the number stays yours for up to 15 minutes).
+          You get a number straight away. Enter it in {offer.service_name} and ask for the code. The code appears on your order page the moment it arrives, usually within seconds (the number stays yours for several minutes).
           <b> If no code arrives, you are refunded automatically.</b>
         </div>
 

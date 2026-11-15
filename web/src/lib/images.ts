@@ -19,3 +19,18 @@ export async function resizeImage(file: File, size = 256): Promise<Blob> {
 }
 
 export const safeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+
+/** Favicon: keeps the whole picture (no cropping), centred on a transparent square PNG. */
+export async function resizeFavicon(file: File, size = 192): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not process the image');
+  const k = Math.min(size / bitmap.width, size / bitmap.height);
+  const w = bitmap.width * k, h = bitmap.height * k;
+  ctx.drawImage(bitmap, (size - w) / 2, (size - h) / 2, w, h);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process the image'))), 'image/png'));
+}

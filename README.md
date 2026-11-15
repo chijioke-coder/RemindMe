@@ -53,3 +53,20 @@ Dashboard → **Test lab**. Supplier mode starts on Mock.
 - New synced products stay hidden until you switch them on.
 - Not built yet: email/SMS notifications, a second supplier, scheduled automatic catalogue sync (run Sync from the dashboard, or add a Supabase cron later).
 - Check that reselling these account types is allowed by Paystack, your hosting, and the platforms involved before taking real payments.
+
+## HeroSMS virtual numbers (added)
+
+HeroSMS is the only virtual-number provider (5sim has been removed).
+
+1. **Database**: SQL Editor → run `supabase/herosms_migration.sql`, then `supabase/herosms_cleanup.sql` (removes old 5sim data and adds the favicon setting).
+2. **Function**: redeploy `supabase/functions/api/index.ts` (replace the whole file).
+3. **Secret**: Edge Functions → Secrets → `HEROSMS_API_KEY` = your key from hero-sms.com.
+4. **Dashboard → Virtual numbers → HeroSMS**: *Check the connection*, enter what one US dollar costs you in naira, press *Save rate and refresh HeroSMS*.
+5. Switch on the apps and countries you want to sell (lists below). Prices appear after the refresh that follows each switch.
+6. Buy one cheap number yourself to test, then let customers in.
+
+How codes reach customers: one HeroSMS call lists every waiting number with its latest SMS, and that call is shared by all customers (at most one every ~1.5 s). The order page asks every 2 s, shows a countdown, plays a sound and vibrates when the code lands, and keeps listening for a second SMS for 3 minutes after the first. No code before the number expires: the number is cancelled at HeroSMS and the customer is refunded automatically. A cancel button refunds instantly while no code has arrived.
+
+Prices: HeroSMS dollar price x your naira rate x your markup %, rounded to the nearest ₦10 step up. A number is bought with a ceiling of 15% above the listed price, so a sudden price rise cannot eat your margin.
+
+**Favicon**: Admin → Settings → Favicon. Upload a square logo; it is saved straight away.

@@ -316,3 +316,23 @@ textarea.in { min-height: 90px; resize: vertical; }
 
 /* delivered items keep their line breaks and spacing, exactly as the seller sent them */
 .keybox .mono { white-space: pre-wrap; }
+
+/* ---- virtual number orders: number, countdown and codes ---- */
+.sms-number { font-size: clamp(1.25rem, 5.5vw, 1.7rem); font-weight: 700; letter-spacing: .02em; }
+.sms-wait { display: flex; align-items: center; gap: 12px; background: var(--gold-l); border-radius: 12px; padding: 12px 14px; }
+.sms-wait .grow { flex: 1; min-width: 0; }
+.sms-clock { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 1.25rem; }
+.sms-pulse { width: 14px; height: 14px; border-radius: 50%; background: var(--gold); flex: none; position: relative; }
+.sms-pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--gold); animation: sms-ping 1.4s cubic-bezier(0, 0, .2, 1) infinite; }
+@keyframes sms-ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
+.sms-bar { height: 8px; background: var(--mist); border-radius: 6px; overflow: hidden; }
+.sms-bar > span { display: block; height: 100%; background: var(--teal); transition: width 1s linear; }
+.sms-tips { margin: 0; padding-left: 18px; }
+.sms-tips li + li { margin-top: 4px; }
+.sms-code { background: var(--ink); color: #e8f1f5; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; border: 2px solid transparent; }
+.sms-code .muted { color: #9fb2bf; }
+.sms-code.fresh { border-color: var(--gold); animation: sms-pop .5s ease-out; }
+.sms-digits { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: clamp(2rem, 11vw, 3rem); font-weight: 800; letter-spacing: .12em; color: var(--gold); line-height: 1.1; }
+.sms-msg { font-size: .9rem; color: #c8d6df; white-space: pre-wrap; }
+@keyframes sms-pop { from { transform: scale(.97); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .sms-pulse::after, .sms-code.fresh { animation: none; } }

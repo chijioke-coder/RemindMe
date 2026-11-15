@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { configured } from './lib/supabase';
+import Favicon from './components/Favicon';
 import Layout from './components/Layout';
 import { RequireAdmin, RequireAuth } from './components/Guards';
 import Home from './pages/Home';
@@ -36,6 +37,8 @@ export default function App() {
     );
   }
   return (
+    <>
+    <Favicon />
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
@@ -64,5 +67,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </>
   );
 }

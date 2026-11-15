@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { callApi, supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { dateTime, naira, STATUS_LABEL } from '../lib/format';
 import KeyList from '../components/KeyList';
+import SmsPanel from '../components/SmsPanel';
 import Icon from '../components/Icon';
 import Linkify from '../components/Linkify';
 
@@ -33,28 +34,11 @@ export default function OrderDetail() {
     return () => { alive = false; if (timer) clearInterval(timer); };
   }, [id, status]);
 
-  // virtual number orders: ask 5sim for the code every few seconds while waiting
   const isSms = o?.delivery_type === 'sms';
-  const [now, setNow] = useState(() => Date.now());
-  const [busyCancel, setBusyCancel] = useState(false);
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!(isSms && status === 'processing')) return;
-    const poll = () => { void callApi('sms_check', { order_id: id }); };
-    poll();
-    const t = setInterval(poll, 4000);
-    const c = setInterval(() => setNow(Date.now()), 1000);
-    return () => { clearInterval(t); clearInterval(c); };
-  }, [id, isSms, status]);
-
-  async function cancelNumber() {
-    if (!confirm('Cancel this number and get your money back? You can only cancel before a code arrives.')) return;
-    setBusyCancel(true);
-    await callApi('sms_cancel', { order_id: id });
-    setBusyCancel(false);
+  const reload = useCallback(async () => {
     const { data } = await supabase.from('my_orders').select('*').eq('id', id).maybeSingle();
     if (data) setO(data as Order);
-  }
+  }, [id]);
 
   if (o === undefined) return <p className="muted">Loading your order…</p>;
   if (o === null) {
@@ -75,11 +59,11 @@ export default function OrderDetail() {
   const overdue = waiting && !!o.due_at && new Date(o.due_at) < new Date();
   const state = done ? 'ok' : waiting ? 'wait' : 'bad';
 
-  const title = done ? 'Order complete'
+  const title = done ? (isSms ? 'Your code is ready' : 'Order complete')
     : waiting ? (o.delivery_type === 'manual' ? 'Order received' : o.delivery_type === 'sms' ? 'Your number is ready' : 'Order in progress')
     : reason === 'items_taken' ? 'Someone got there first' : 'We could not complete this order';
-  const sub = done ? 'Your purchase is ready. Everything you bought is shown here and saved in your orders.'
-    : waiting ? (o.delivery_type === 'manual' ? 'Thank you. We are preparing your order by hand and it will appear on this page as soon as it is delivered.' : o.delivery_type === 'sms' ? 'Use the number below on the app, then ask it to send the code. The code shows here the moment it arrives.' : 'This usually takes a moment. This page updates by itself.')
+  const sub = done ? (isSms ? 'Your verification code is below. It is also saved in your orders.' : 'Your purchase is ready. Everything you bought is shown here and saved in your orders.')
+    : waiting ? (o.delivery_type === 'manual' ? 'Thank you. We are preparing your order by hand and it will appear on this page as soon as it is delivered.' : o.delivery_type === 'sms' ? 'Enter the number below in the app and ask it to send the code. The code shows here the moment it arrives.' : 'This usually takes a moment. This page updates by itself.')
     : reason === 'items_taken' ? `Another buyer picked one of those items just before you. Your ${naira(o.total_kobo)} is back in your wallet, so you can choose again.`
     : `Your ${naira(o.total_kobo)} has been returned to your wallet. You can try again or contact support.`;
 
@@ -100,32 +84,20 @@ export default function OrderDetail() {
             </div>
           )}
 
-          {done && (
+          {done && !isSms && (
             <div className="panel stack">
               <h2>Your details</h2>
               <KeyList orderId={o.id} autoLoad />
             </div>
           )}
 
-          {waiting && isSms && (
-            <div className="panel stack">
-              <h2>Your number</h2>
-              {o.sms_phone ? (
-                <div className="keybox">
-                  <span className="mono" style={{ fontSize: '1.4rem', fontWeight: 700 }}>{o.sms_phone}</span>
-                  <button className="btn sm gold" onClick={async () => { try { await navigator.clipboard.writeText(o.sms_phone ?? ''); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } }}>{copied ? 'Copied' : 'Copy'}</button>
-                </div>
-              ) : <p className="muted">Getting your number…</p>}
-              <div className="notice warn">
-                Waiting for the SMS…
-                {o.sms_expires && (() => {
-                  const left = Math.max(0, Math.floor((new Date(o.sms_expires).getTime() - now) / 1000));
-                  return <> <b>{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b> left. If no code arrives in time, you are refunded automatically.</>;
-                })()}
-              </div>
-              <button className="btn ghost" disabled={busyCancel} onClick={cancelNumber}>{busyCancel ? 'Cancelling…' : 'Cancel and refund me'}</button>
-              {support && <a className="btn ghost" href={support} target="_blank" rel="noreferrer">Contact support</a>}
-            </div>
+          {isSms && (waiting || done) && (
+            <SmsPanel
+              orderId={o.id}
+              initial={{ status: o.status, phone: o.sms_phone, expires: o.sms_expires }}
+              supportUrl={support}
+              onSettled={reload}
+            />
           )}
 
           {waiting && !isSms && (
