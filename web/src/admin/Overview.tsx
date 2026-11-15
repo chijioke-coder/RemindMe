@@ -4,62 +4,85 @@ import { callApi, supabase } from '../lib/supabase';
 import { dateTime, naira, STATUS_LABEL } from '../lib/format';
 
 const roundUp500 = (kobo: number) => Math.ceil(kobo / 50000) * 50000; // next ₦500
+const n0 = (kobo: number) => naira(Math.round(kobo / 100) * 100);
 
-/** Works out how much to add on the supplier site, from your real products and recent orders. */
+type Prod = { name: string; sell: number; cost: number };
+
+/** Looks at every customer's wallet, works out what each one can buy, and says how much the supplier wallet needs. */
 function FundingAdvice({ balanceKobo }: { balanceKobo: number | null }) {
-  const [d, setD] = useState<{ cheapest: number; priciest: number; daily: number; missed: number; count: number } | null>(null);
+  const [data, setData] = useState<{ prods: Prod[]; wallets: any[] } | null>(null);
 
   useEffect(() => {
-    const since7 = new Date(Date.now() - 7 * 86400000).toISOString();
-    const since1 = new Date(Date.now() - 86400000).toISOString();
     Promise.all([
-      supabase.from('products').select('upstream_price_kobo').eq('source', 'supplier').eq('is_active', true)
-        .eq('upstream_missing', false).gt('stock', 0).gt('upstream_price_kobo', 0),
-      supabase.from('orders').select('upstream_charge_kobo').eq('status', 'completed').eq('delivery_type', 'supplier').gte('created_at', since7),
-      supabase.from('orders').select('upstream_unit_cost_kobo, quantity').eq('error_code', 'upstream_balance').gte('created_at', since1),
-    ]).then(([p, done, missed]) => {
-      const prices = (p.data ?? []).map((r: any) => Number(r.upstream_price_kobo));
-      const spent7 = (done.data ?? []).reduce((a: number, r: any) => a + Number(r.upstream_charge_kobo ?? 0), 0);
-      const missed24 = (missed.data ?? []).reduce((a: number, r: any) => a + Number(r.upstream_unit_cost_kobo ?? 0) * Number(r.quantity ?? 1), 0);
-      setD({
-        cheapest: prices.length ? Math.min(...prices) : 0,
-        priciest: prices.length ? Math.max(...prices) : 0,
-        daily: spent7 / 7,
-        missed: missed24,
-        count: prices.length,
-      });
-    });
+      supabase.from('products').select('display_name, upstream_name, sell_price_kobo, upstream_price_kobo')
+        .eq('source', 'supplier').eq('is_active', true).eq('upstream_missing', false)
+        .gt('stock', 0).gt('upstream_price_kobo', 0).gt('sell_price_kobo', 0),
+      supabase.from('wallets').select('balance_kobo, profiles(email, role)').gt('balance_kobo', 0).limit(5000),
+    ]).then(([p, w]) => setData({
+      prods: (p.data ?? []).map((r: any) => ({ name: r.display_name || r.upstream_name, sell: Number(r.sell_price_kobo), cost: Number(r.upstream_price_kobo) })),
+      wallets: w.data ?? [],
+    }));
   }, [balanceKobo]);
 
-  if (balanceKobo === null || !d) return null;
-  if (d.count === 0) return null;
+  if (balanceKobo === null || !data || data.prods.length === 0) return null;
 
-  const resume = Math.max(0, d.cheapest - balanceKobo);
-  const everyOnce = Math.max(0, d.priciest - balanceKobo);
-  const target = Math.max(d.priciest, 3 * d.daily, d.missed);
-  const recommended = roundUp500(Math.max(0, target - balanceKobo));
-  const fine = recommended === 0;
+  // for each customer: the priciest-to-you product their wallet can afford (one purchase each)
+  const rows = data.wallets
+    .map((w: any) => {
+      const pr = Array.isArray(w.profiles) ? w.profiles[0] : w.profiles;
+      return { email: pr?.email ?? 'customer', role: pr?.role ?? 'customer', bal: Number(w.balance_kobo) };
+    })
+    .filter((c) => c.role !== 'admin')
+    .map((c) => {
+      let best: Prod | null = null;
+      for (const p of data.prods) if (p.sell <= c.bal && (!best || p.cost > best.cost)) best = p;
+      return { ...c, best };
+    })
+    .filter((r) => r.best) as { email: string; bal: number; best: Prod }[];
+
+  const demand = rows.reduce((a, r) => a + r.best.cost, 0);
+  const walletTotal = rows.reduce((a, r) => a + r.bal, 0);
+  const recommended = roundUp500(Math.max(0, demand - balanceKobo));
+  const top = [...rows].sort((a, b) => b.best.cost - a.best.cost).slice(0, 8);
 
   return (
-    <div className={`panel stack ${fine ? '' : ''}`}>
+    <div className="panel stack">
       <h2>How much to fund on the supplier site</h2>
-      {fine ? (
-        <div className="notice good">Your supplier wallet ({naira(balanceKobo)}) is enough for now. Nothing to add.</div>
+      <p className="muted small">I checked every customer's wallet and what it can buy right now. A customer counts only if their wallet can afford at least one of your products.</p>
+
+      {rows.length === 0 ? (
+        <div className="notice good">Customer wallets are too low to buy anything right now, so there is nothing to fund.</div>
+      ) : recommended === 0 ? (
+        <div className="notice good">Your supplier wallet ({n0(balanceKobo)}) already covers what these customers could buy ({n0(demand)}). Nothing to add.</div>
       ) : (
         <div className="notice warn">
-          Add about <b>{naira(recommended)}</b> on the supplier site. After that your wallet would be {naira(balanceKobo + recommended)}.
+          Add about <b>{n0(recommended)}</b> on the supplier site. Then your wallet would be {n0(balanceKobo + recommended)}, enough for these customers to buy one product each.
         </div>
       )}
-      <div className="stack-s">
-        <div className="line-item"><span className="muted">Your supplier wallet now</span><b>{naira(balanceKobo)}</b></div>
-        <div className="line-item"><span className="muted">Smallest top-up to sell the cheapest product</span><b>{resume > 0 ? naira(resume) : 'Not needed'}</b></div>
-        <div className="line-item"><span className="muted">To be able to buy any single product once</span><b>{everyOnce > 0 ? naira(everyOnce) : 'Not needed'}</b></div>
-        <div className="line-item"><span className="muted">Recommended top-up</span><b>{recommended > 0 ? naira(recommended) : 'Not needed'}</b></div>
-      </div>
-      <p className="muted small">
-        The recommendation covers the most expensive product you sell ({naira(d.priciest)}), about 3 days of your recent supplier spending ({naira(Math.round(3 * d.daily))}),
-        and customers whose orders could not go through in the last 24 hours ({naira(d.missed)}), whichever is biggest. It updates each time your supplier balance is checked.
-      </p>
+
+      {rows.length > 0 && (
+        <>
+          <div className="stack-s">
+            <div className="line-item"><span className="muted">Customers who can buy something</span><b>{rows.length}</b></div>
+            <div className="line-item"><span className="muted">Money in those wallets</span><b>{n0(walletTotal)}</b></div>
+            <div className="line-item"><span className="muted">Supplier cost if each buys one product</span><b>{n0(demand)}</b></div>
+            <div className="line-item"><span className="muted">Your supplier wallet now</span><b>{n0(balanceKobo)}</b></div>
+          </div>
+          <details>
+            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>See the customers behind this</summary>
+            <div className="list" style={{ marginTop: 8, border: '1px solid var(--line)', borderRadius: 12 }}>
+              {top.map((r, i) => (
+                <div key={i} className="stack-s">
+                  <div className="row between"><span style={{ fontWeight: 600 }}>{r.email}</span><span className="muted small">wallet {n0(r.bal)}</span></div>
+                  <div className="muted small">Can afford {r.best.name}, which costs you {n0(r.best.cost)}</div>
+                </div>
+              ))}
+              {rows.length > top.length && <div className="muted small">…and {rows.length - top.length} more customers.</div>}
+            </div>
+          </details>
+          <p className="muted small">This counts one purchase per customer (the most expensive product, at your supplier price, that their wallet can afford). It updates whenever a wallet or your supplier balance changes.</p>
+        </>
+      )}
     </div>
   );
 }
