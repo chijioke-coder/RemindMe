@@ -4,7 +4,7 @@ import Icon from './Icon';
 
 type State = {
   status: string; phone: string | null; expires: string | null; items?: string[];
-  listening?: boolean; now?: number; cancelFailed?: boolean;
+  listening?: boolean; now?: number;
 };
 type Otp = { code: string; message: string };
 
@@ -48,8 +48,7 @@ export default function SmsPanel({ orderId, initial, supportUrl, onSettled }: {
   const [skew, setSkew] = useState(0); // server clock minus this device's clock
   const [tick, setTick] = useState(() => Date.now());
   const [copied, setCopied] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'cancel' | 'finish' | null>(null);
-  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState<'finish' | null>(null);
   const seen = useRef(initial.status === 'completed' ? -1 : 0); // how many codes were already shown
   const [fresh, setFresh] = useState(-1);
   const settled = useRef(initial.status);
@@ -111,17 +110,6 @@ export default function SmsPanel({ orderId, initial, supportUrl, onSettled }: {
     try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch { /* ignore */ }
   }
 
-  async function cancel() {
-    if (!confirm('Cancel this number and get your money back? You can only cancel before a code arrives.')) return;
-    setBusy('cancel'); setNotice('');
-    const r = await callApi<State>('sms_cancel', { order_id: orderId });
-    setBusy(null);
-    if (r.ok) {
-      apply(r as unknown as State);
-      if ((r as unknown as State).cancelFailed) setNotice('The number cannot be cancelled just yet. Try again in a minute. If no code arrives, you are refunded automatically.');
-    } else setNotice(r.detail || 'Could not cancel. Please try again.');
-  }
-
   async function finish() {
     setBusy('finish');
     const r = await callApi<State>('sms_finish', { order_id: orderId });
@@ -170,9 +158,7 @@ export default function SmsPanel({ orderId, initial, supportUrl, onSettled }: {
             <li>If the app asks, tap <b>Resend</b> after a minute. New codes show up here as well.</li>
             <li><b>No code in time? You are refunded automatically.</b></li>
           </ul>
-          {notice && <div className="notice warn small">{notice}</div>}
           <div className="row wrap">
-            <button className="btn ghost" disabled={busy === 'cancel'} onClick={cancel}>{busy === 'cancel' ? 'Cancelling…' : 'Cancel and refund me'}</button>
             {supportUrl && <a className="btn ghost" href={supportUrl} target="_blank" rel="noreferrer">Contact support</a>}
           </div>
         </div>
