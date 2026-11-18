@@ -4,8 +4,9 @@ import Icon from './Icon';
 
 type State = {
   status: string; phone: string | null; expires: string | null; items?: string[];
-  listening?: boolean; now?: number;
+  listening?: boolean; now?: number; started?: string | null;
 };
+const CANCEL_AFTER = 120; // seconds the customer must wait before cancelling
 type Otp = { code: string; message: string };
 
 /** items arrive as "Code: 123456", "Message: ...": group them so each SMS is one card */
@@ -48,7 +49,8 @@ export default function SmsPanel({ orderId, initial, supportUrl, onSettled }: {
   const [skew, setSkew] = useState(0); // server clock minus this device's clock
   const [tick, setTick] = useState(() => Date.now());
   const [copied, setCopied] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'finish' | null>(null);
+  const [busy, setBusy] = useState<'finish' | 'cancel' | null>(null);
+  const [cancelMsg, setCancelMsg] = useState('');
   const seen = useRef(initial.status === 'completed' ? -1 : 0); // how many codes were already shown
   const [fresh, setFresh] = useState(-1);
   const settled = useRef(initial.status);
@@ -117,11 +119,22 @@ export default function SmsPanel({ orderId, initial, supportUrl, onSettled }: {
     if (r.ok) apply(r as unknown as State);
   }
 
+  async function cancel() {
+    if (!window.confirm('Cancel this number and get your money back? Only do this if you have not received a code.')) return;
+    setBusy('cancel'); setCancelMsg('');
+    const r = await callApi<State>('sms_cancel_own', { order_id: orderId });
+    setBusy(null);
+    if (r.ok) apply(r as unknown as State);
+    else setCancelMsg(r.detail || 'Could not cancel. Please try again.');
+  }
+
   const phone = st.phone;
   const digits = (phone ?? '').replace(/\D/g, '');
   const left = st.expires ? Math.max(0, Math.floor((new Date(st.expires).getTime() - (tick + skew)) / 1000)) : null;
   const otps = parseOtps(st.items);
   const waiting = st.status === 'processing';
+  const waited = st.started ? Math.floor((tick + skew - new Date(st.started).getTime()) / 1000) : 0;
+  const cancelIn = Math.max(0, CANCEL_AFTER - waited);
 
   return (
     <div className="stack">
@@ -156,11 +169,16 @@ export default function SmsPanel({ orderId, initial, supportUrl, onSettled }: {
           <ul className="sms-tips small muted">
             <li>Codes usually arrive within seconds.</li>
             <li>If the app asks, tap <b>Resend</b> after a minute. New codes show up here as well.</li>
-            <li><b>No code in time? You are refunded automatically.</b></li>
+            <li><b>No code? After 2 minutes you can cancel for a refund. If the number expires, you are refunded automatically.</b></li>
           </ul>
           <div className="row wrap">
+            <button className="btn danger" disabled={cancelIn > 0 || busy === 'cancel'} style={cancelIn > 0 ? { opacity: 0.4 } : undefined} onClick={cancel}>
+              {busy === 'cancel' ? 'Cancelling…' : cancelIn > 0 ? `Cancel number (available in ${clock(cancelIn)})` : 'Cancel number and get refund'}
+            </button>
             {supportUrl && <a className="btn ghost" href={supportUrl} target="_blank" rel="noreferrer">Contact support</a>}
           </div>
+          {cancelMsg && <div className="notice bad small">{cancelMsg}</div>}
+          {cancelIn > 0 && <p className="muted small">You can cancel if no code has arrived after 2 minutes. Please give the code time to come.</p>}
         </div>
       )}
 
