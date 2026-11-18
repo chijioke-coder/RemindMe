@@ -336,3 +336,7 @@ textarea.in { min-height: 90px; resize: vertical; }
 .sms-msg { font-size: .9rem; color: #c8d6df; white-space: pre-wrap; }
 @keyframes sms-pop { from { transform: scale(.97); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .sms-pulse::after, .sms-code.fresh { animation: none; } }
+
+/* shop: small labels that tell people what kind of item it is */
+.kind { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--mist); color: var(--ink-2); font-size: 0.7rem; font-weight: 700; vertical-align: middle; white-space: nowrap; }
+.kind.num { background: var(--teal-l); border-color: transparent; color: var(--teal-d); }
