@@ -70,3 +70,10 @@ How codes reach customers: one HeroSMS call lists every waiting number with its 
 Prices: HeroSMS dollar price x your naira rate x your markup %, rounded to the nearest ₦10 step up. A number is bought with a ceiling of 15% above the listed price, so a sudden price rise cannot eat your margin.
 
 **Favicon**: Admin → Settings → Favicon. Upload a square logo; it is saved straight away.
+
+## Virtual number prices, dollar rate and webhook
+1. Run `supabase/herosms_pricing.sql` in the SQL Editor (after the two earlier HeroSMS files).
+2. Redeploy the `api` function. Deploy `hero-webhook` too, with **Verify JWT turned off**:
+   `supabase functions deploy hero-webhook --no-verify-jwt`
+3. Admin → Virtual numbers: choose the automatic dollar rate (set the margin), press "Save and refresh prices", then use section 4 to set rules and prices.
+4. Paste the webhook address (shown in Admin → Virtual numbers) into HeroSMS if your account has a webhook/callback field. The site works without it.
