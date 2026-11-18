@@ -89,7 +89,7 @@ export default function Home() {
       {(settings as unknown as { sms_show?: boolean } | null)?.sms_show && (
         <div className="panel row between wrap">
           <div className="grow"><h2>Virtual numbers</h2><p className="muted">Need a number to verify WhatsApp, Telegram, Facebook and more? Get one in seconds and receive your code right here.</p></div>
-          <Link to="/numbers" className="btn gold">Get a number</Link>
+          <Link to="/products?tab=numbers" className="btn gold">Get a number</Link>
         </div>
       )}
 
