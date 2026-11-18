@@ -27,8 +27,8 @@ export default function ProductBoard({ title, products, categories }: { title?: 
             <div className="item" key={p.id}>
               <ProductIcon path={p.icon_path} label={catName(p.category_id) || p.name} seed={p.category_id ?? p.id} />
               <div className="grow">
-                <div className="name">{p.name} {p.badge && <span className="badge hot">{p.badge}</span>}</div>
-                <div className="muted small">{catName(p.category_id)} · {out ? (p.funds_limited ? 'Temporarily unavailable' : 'Out of stock') : tracked ? `${p.stock} in stock` : 'Available'}</div>
+                <div className="name">{p.name} <span className="kind">{catName(p.category_id) || 'Product'}</span> {p.badge && <span className="badge hot">{p.badge}</span>}</div>
+                <div className="muted small">{out ? (p.funds_limited ? 'Temporarily unavailable' : 'Out of stock') : tracked ? `${p.stock} in stock` : 'Available'}</div>
                 {tracked && <div className={`gauge ${p.stock < 8 ? 'low' : ''}`}><i style={{ width: `${out ? 0 : Math.max(pct, 6)}%` }} /></div>}
               </div>
               <div className="price">{naira(p.price_kobo)}</div>
