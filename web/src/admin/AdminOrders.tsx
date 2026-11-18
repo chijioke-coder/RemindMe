@@ -105,6 +105,45 @@ function DeliverPanel({ order, onDone }: { order: any; onDone: () => void }) {
   );
 }
 
+function SmsWaitPanel({ order, onDone }: { order: any; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState(false);
+  const [msg, setMsg] = useState<{ kind: string; text: string } | null>(null);
+
+  async function cancelAndRefund() {
+    if (!confirm('Cancel this number at HeroSMS and refund the customer? HeroSMS gives your money back only if no code has arrived.')) return;
+    setBusy(true); setMsg(null);
+    const r = await callApi<any>('sms_cancel', { order_id: order.id });
+    setBusy(false);
+    if (!r.ok) return setMsg({ kind: 'bad', text: r.detail || 'Could not cancel.' });
+    if (r.status === 'refunded') return onDone();
+    if (r.status === 'completed') { setMsg({ kind: 'good', text: 'A code had just arrived, so the customer received it and nothing was refunded.' }); return; }
+    setRefused(true);
+    setMsg({ kind: 'warn', text: 'HeroSMS would not cancel this number yet (too early, or it is already closed). Try again in a minute. Refunding anyway means you may not get the cost back from HeroSMS.' });
+  }
+
+  async function forceRefund() {
+    if (!confirm('Refund the customer WITHOUT cancelling at HeroSMS? You may lose the cost of this number.')) return;
+    setBusy(true);
+    const r = await callApi('resolve_order', { order_id: order.id, resolution: 'refund', note: 'Refunded by admin' });
+    setBusy(false);
+    if (!r.ok) return setMsg({ kind: 'bad', text: r.detail || 'Could not refund.' });
+    onDone();
+  }
+
+  return (
+    <div className="panel stack">
+      <h3>Waiting for the code</h3>
+      <p className="muted small">If no code arrives, the customer is refunded automatically when the number expires. Use this to refund sooner. It cancels the number at HeroSMS first, so you get your cost back.</p>
+      <div className="row wrap">
+        <button className="btn danger" disabled={busy} onClick={cancelAndRefund}>{busy ? 'Working…' : 'Cancel number and refund customer'}</button>
+        {refused && <button className="btn ghost" disabled={busy} onClick={forceRefund}>Refund anyway</button>}
+      </div>
+      {msg && <div className={`notice ${msg.kind}`}>{msg.text}</div>}
+    </div>
+  );
+}
+
 export default function AdminOrders() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? '';
@@ -165,6 +204,7 @@ export default function AdminOrders() {
                   {o.customer_note && <div className="notice good"><b>Customer details:</b> {o.customer_note}</div>}
                   {o.error_code && <div className="notice warn"><b>{o.error_code}</b>{o.error_detail ? `: ${o.error_detail}` : ''}</div>}
                   {o.flag && <div className="notice warn">Flag: {o.flag}</div>}
+                  {o.status === 'processing' && o.delivery_type === 'sms' && <SmsWaitPanel order={o} onDone={() => { setOpen(null); void load(); }} />}
                   {needsAction && <DeliverPanel order={o} onDone={() => { setOpen(null); void load(); }} />}
                 </div>
               )}
