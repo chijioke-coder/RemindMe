@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { callApi, supabase } from '../lib/supabase';
+import AdminNumberPrices from './AdminNumberPrices';
 
 export default function AdminNumbers() {
   const [s, setS] = useState<any | null>(null);
   const [msg, setMsg] = useState<{ kind: string; text: string } | null>(null);
   const [heroInfo, setHeroInfo] = useState<{ kind: string; text: string } | null>(null);
   const [heroBusy, setHeroBusy] = useState(false);
+  const [hook, setHook] = useState<{ kind: string; text: string } | null>(null);
   const heroTimer = useRef<ReturnType<typeof setTimeout>>();
   const [svcQ, setSvcQ] = useState('');
   const [ctyQ, setCtyQ] = useState('');
@@ -15,7 +17,7 @@ export default function AdminNumbers() {
 
   async function loadSettings() {
     const { data } = await supabase.from('app_settings')
-      .select('sms_show, sms_markup_percent, sms_min_rate, hero_rate_naira, hero_last_sync_at').eq('id', 1).single();
+      .select('sms_show, sms_markup_percent, sms_min_rate, sms_min_profit_naira, hero_rate_naira, hero_last_sync_at, hero_rate_mode, hero_rate_margin_percent, hero_rate_market, hero_rate_source, hero_rate_updated_at').eq('id', 1).single();
     if (data) setS(data);
   }
   async function loadLists() {
@@ -41,16 +43,40 @@ export default function AdminNumbers() {
 
   async function saveSettings() {
     const hero = Number(s.hero_rate_naira);
-    if (s.sms_show && !(hero > 0)) return setMsg({ kind: 'bad', text: 'Enter how many naira one US dollar costs you before switching virtual numbers on.' });
-    const { error } = await supabase.from('app_settings').update({
+    const auto = s.hero_rate_mode !== 'manual';
+    if (!auto && s.sms_show && !(hero > 0)) { setMsg({ kind: 'bad', text: 'Enter how many naira one US dollar costs you before switching virtual numbers on.' }); return false; }
+    const patch: Record<string, unknown> = {
       sms_show: !!s.sms_show,
       sms_rate_naira: 1, // prices are stored in naira already: the shared base unit stays at 1
       sms_markup_percent: Number(s.sms_markup_percent) || 0,
       sms_min_rate: Number(s.sms_min_rate) || 0,
-      hero_rate_naira: hero || 0,
-    }).eq('id', 1);
-    setMsg(error ? { kind: 'bad', text: error.message } : { kind: 'good', text: 'Saved. Prices update on the next refresh (press the refresh button, or wait a few minutes).' });
+      sms_min_profit_naira: Math.max(0, Number(s.sms_min_profit_naira) || 0),
+      hero_rate_mode: auto ? 'auto' : 'manual',
+      hero_rate_margin_percent: Number(s.hero_rate_margin_percent) || 0,
+    };
+    if (!auto) patch.hero_rate_naira = hero || 0; // in automatic mode the server keeps this number up to date
+    const { error } = await supabase.from('app_settings').update(patch).eq('id', 1);
+    setMsg(error ? { kind: 'bad', text: error.message } : { kind: 'good', text: 'Saved.' });
     void loadCounts();
+    return !error;
+  }
+
+  /** reads the dollar rate again now (automatic mode) and reprices everything */
+  async function refreshRate() {
+    setHeroBusy(true);
+    setHeroInfo({ kind: 'warn', text: 'Reading the dollar rate…' });
+    const r = await callApi<any>('hero_rate_refresh');
+    setHeroBusy(false);
+    setHeroInfo(r.ok
+      ? { kind: 'good', text: `Market rate ₦${Number(r.market).toLocaleString()} per $1 (${r.source}). Your rate with margin: ₦${Number(r.used).toLocaleString()}. Prices updated.` }
+      : { kind: 'bad', text: r.detail || 'Could not read the rate.' });
+    await Promise.all([loadSettings(), loadCounts()]);
+  }
+
+  async function showHook() {
+    setHook({ kind: 'warn', text: 'Loading…' });
+    const r = await callApi<any>('hero_webhook_info');
+    setHook(r.ok ? { kind: 'good', text: r.url } : { kind: 'bad', text: r.detail || 'Could not get the address.' });
   }
 
   async function checkHero() {
@@ -112,16 +138,35 @@ export default function AdminNumbers() {
         <div className="panel stack">
           <h2>1. Connect and set prices</h2>
           <p className="muted small">Add your HeroSMS API key as the secret <b>HEROSMS_API_KEY</b> in Supabase → Edge Functions → Secrets. It stays on the server. HeroSMS charges in US dollars, so tell the store what one dollar costs you in naira. Prices and stock refresh by themselves every few minutes.</p>
-          <label className="f"><span>Naira that one US dollar costs you</span>
-            <input className="in" inputMode="decimal" value={s.hero_rate_naira ?? ''} onChange={(e) => set('hero_rate_naira', e.target.value)} placeholder="e.g. 1600" /></label>
+          <div className="chips">
+            <button className={`chip ${s.hero_rate_mode !== 'manual' ? 'on' : ''}`} onClick={() => set('hero_rate_mode', 'auto')}>Dollar rate: automatic</button>
+            <button className={`chip ${s.hero_rate_mode === 'manual' ? 'on' : ''}`} onClick={() => set('hero_rate_mode', 'manual')}>Dollar rate: I type it</button>
+          </div>
+          {s.hero_rate_mode === 'manual' ? (
+            <label className="f"><span>Naira that one US dollar costs you</span>
+              <input className="in" inputMode="decimal" value={s.hero_rate_naira ?? ''} onChange={(e) => set('hero_rate_naira', e.target.value)} placeholder="e.g. 1600" /></label>
+          ) : (
+            <div className="stack-s">
+              <label className="f"><span>Extra margin on the market rate (%)</span>
+                <input className="in" inputMode="decimal" value={s.hero_rate_margin_percent ?? 2} onChange={(e) => set('hero_rate_margin_percent', e.target.value)} /></label>
+              <p className="muted small">
+                {Number(s.hero_rate_market) > 0
+                  ? <>Market rate now: <b>₦{Number(s.hero_rate_market).toLocaleString()}</b> per $1 ({s.hero_rate_source}). Rate used for your prices: <b>₦{Number(s.hero_rate_naira).toLocaleString()}</b>. Checked {s.hero_rate_updated_at ? new Date(s.hero_rate_updated_at).toLocaleString('en-NG') : 'never'}.</>
+                  : 'No rate read yet. Press “Check the rate now”.'}
+                {' '}It is read by itself every few hours from free sources. The margin covers what your bank charges when you fund HeroSMS. If the sources fail, the last rate stays.
+              </p>
+              <div><button className="btn ghost" disabled={heroBusy} onClick={async () => { if (await saveSettings()) await refreshRate(); }}>Check the rate now</button></div>
+            </div>
+          )}
           <div className="grid2">
-            <label className="f"><span>Your markup %</span><input className="in" inputMode="decimal" value={s.sms_markup_percent} onChange={(e) => set('sms_markup_percent', e.target.value)} /></label>
+            <label className="f"><span>Normal markup % (used when no rule fits)</span><input className="in" inputMode="decimal" value={s.sms_markup_percent} onChange={(e) => set('sms_markup_percent', e.target.value)} /></label>
+            <label className="f"><span>Least profit on each number (₦)</span><input className="in" inputMode="decimal" value={s.sms_min_profit_naira ?? 0} onChange={(e) => set('sms_min_profit_naira', e.target.value)} /></label>
             <label className="f"><span>Hide numbers below this success % (0 = show all)</span><input className="in" inputMode="decimal" value={s.sms_min_rate} onChange={(e) => set('sms_min_rate', e.target.value)} /></label>
           </div>
           <label className="check"><input type="checkbox" checked={!!s.sms_show} onChange={(e) => set('sms_show', e.target.checked)} /> Show virtual numbers in the store (alongside the other products)</label>
           <div className="row wrap">
             <button className="btn ghost" onClick={checkHero}>Check the connection</button>
-            <button className="btn" disabled={heroBusy} onClick={async () => { await saveSettings(); await syncHero(); }}>{heroBusy ? 'Refreshing…' : 'Save and refresh prices'}</button>
+            <button className="btn" disabled={heroBusy} onClick={async () => { if (await saveSettings()) { if (s.hero_rate_mode === 'manual') await syncHero(); else await refreshRate(); } }}>{heroBusy ? 'Refreshing…' : 'Save and refresh prices'}</button>
             <button className="btn ghost" onClick={async () => { const r = await callApi<any>('sms_sweep'); setMsg(r.ok ? { kind: 'good', text: `Checked ${r.checked} waiting number orders. Any that expired were refunded.` } : { kind: 'bad', text: r.detail || 'Could not check.' }); }}>Check waiting orders now</button>
           </div>
           {heroInfo && <div className={`notice ${heroInfo.kind} small`}>{heroInfo.text}</div>}
@@ -131,7 +176,12 @@ export default function AdminNumbers() {
         <div className="panel stack">
           <h2>How it works</h2>
           <p className="muted small">The first refresh loads every app and country HeroSMS sells. They stay hidden until you switch them on in the lists below. After each switch the prices and stock for what you enabled are loaded automatically.</p>
-          <p className="muted small">Customers pay your price (HeroSMS dollar price × your rate × your markup). If no code arrives before the number expires, the customer is refunded automatically.</p>
+          <p className="muted small">Customers pay your price (HeroSMS dollar price × the dollar rate × your markup, or a rule or price you set in section 4). If no code arrives before the number expires, the customer is refunded automatically.</p>
+          <h2>Instant codes (webhook)</h2>
+          <p className="muted small">The store already checks HeroSMS every second or two while a customer waits. A webhook makes it even faster: HeroSMS calls the store the moment a code arrives. In your HeroSMS account, look for “webhook” or “callback URL” in the API settings and paste the address below. Deploy the <b>hero-webhook</b> function with “Verify JWT” turned off first.</p>
+          <div className="row wrap"><button className="btn sm ghost" onClick={showHook}>Show my webhook address</button>
+            {hook?.kind === 'good' && <button className="btn sm gold" onClick={() => void navigator.clipboard?.writeText(hook.text)}>Copy</button>}</div>
+          {hook && (hook.kind === 'good' ? <div className="keybox"><span className="mono" style={{ wordBreak: 'break-all' }}>{hook.text}</span></div> : <div className={`notice ${hook.kind} small`}>{hook.text}</div>)}
         </div>
       </div>
 
@@ -174,6 +224,8 @@ export default function AdminNumbers() {
           <p className="muted small">A number appears in the store only when both its app and its country are switched on and HeroSMS has stock.</p>
         </div>
       </div>
+
+      <AdminNumberPrices />
     </>
   );
 }
