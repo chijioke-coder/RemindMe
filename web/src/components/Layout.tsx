@@ -9,8 +9,7 @@ type Nav = { to: string; label: string; icon: string; end?: boolean; auth?: bool
 
 const MAIN: Nav[] = [
   { to: '/', label: 'Home', icon: 'home', end: true },
-  { to: '/products', label: 'Store', icon: 'store' },
-  { to: '/numbers', label: 'Virtual numbers', icon: 'phone', sms: true },
+  { to: '/products', label: 'Shop', icon: 'store' },
   { to: '/account', label: 'My account', icon: 'user', auth: true },
   { to: '/orders', label: 'Orders', icon: 'package', auth: true },
   { to: '/wallet', label: 'Wallet', icon: 'wallet', auth: true },
