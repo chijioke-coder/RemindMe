@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const tabs: [string, string, boolean][] = [
   ['/admin', 'Overview', true],
+  ['/admin/analytics', 'Analytics', false],
   ['/admin/orders', 'Orders', false],
   ['/admin/products', 'Products', false],
   ['/admin/categories', 'Categories', false],
