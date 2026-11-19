@@ -98,6 +98,43 @@ function Delta({ now, before, goodWhenUp = true }: { now: number; before: number
   return <span className="small" style={{ color: good ? 'var(--teal-d)' : 'var(--brick)', fontWeight: 700 }}>{up ? '▲' : '▼'} {text} <span className="muted" style={{ fontWeight: 400 }}>vs before</span></span>;
 }
 
+
+type SortKey = 'orders' | 'sales' | 'profit';
+const SORTS: [SortKey, string][] = [['orders', 'Most bought'], ['sales', 'Most sales ₦'], ['profit', 'Most profit']];
+
+/** a ranked list the owner can re-sort: most bought, most sales or most profit */
+function Ranking({ title, rows, nameKey, salesKey, totalSales, showUnits }: {
+  title: string; rows: any[]; nameKey: string; salesKey: string; totalSales: number; showUnits?: boolean;
+}) {
+  const [by, setBy] = useState<SortKey>('orders');
+  const [all, setAll] = useState(false);
+  const val = (r: any) => (by === 'orders' ? Number(r.orders) * 1e9 + Number(r[salesKey]) / 100 : by === 'sales' ? Number(r[salesKey]) : Number(r.profit));
+  const sorted = [...rows].sort((a, b) => val(b) - val(a));
+  const shown = all ? sorted : sorted.slice(0, 10);
+  const maxSales = Math.max(1, ...rows.map((r) => Number(r[salesKey])));
+  return (
+    <div className="panel stack-s">
+      <h2>{title}</h2>
+      <div className="chips">{SORTS.map(([v, l]) => <button key={v} className={`chip ${by === v ? 'on' : ''}`} onClick={() => setBy(v)}>{l}</button>)}</div>
+      {shown.length === 0 && <p className="muted small">No sales in this period.</p>}
+      {shown.map((r, i) => (
+        <div key={r[nameKey]} className="stack-s" style={{ gap: 4 }}>
+          <div className="row between" style={{ gap: 8 }}>
+            <span style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{i + 1}. {r[nameKey]}</span>
+            <span className="small" style={{ whiteSpace: 'nowrap' }}><b>{r.orders}</b> {Number(r.orders) === 1 ? 'purchase' : 'purchases'}{showUnits && Number(r.units) !== Number(r.orders) ? ` · ${r.units} units` : ''}</span>
+          </div>
+          <div style={{ background: 'var(--mist)', borderRadius: 6, height: 8 }}><div style={{ width: `${(Number(r[salesKey]) / maxSales) * 100}%`, height: 8, borderRadius: 6, background: 'var(--teal)' }} /></div>
+          <div className="row between small muted">
+            <span>{naira(r[salesKey])} ({pct(Number(r[salesKey]), totalSales)}% of sales) · last {r.last_at ? new Date(r.last_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : '-'}</span>
+            <span style={{ color: Number(r.profit) < 0 ? 'var(--brick)' : 'var(--teal-d)', fontWeight: 700 }}>profit {naira(r.profit)}</span>
+          </div>
+        </div>
+      ))}
+      {rows.length > 10 && <button className="btn sm ghost" onClick={() => setAll(!all)}>{all ? 'Show top 10' : `Show all ${rows.length}`}</button>}
+    </div>
+  );
+}
+
 export default function AdminAnalytics() {
   const [preset, setPreset] = useState<Preset>('30d');
   const [cFrom, setCFrom] = useState(inputDate(addDays(sod(new Date()), -29)));
@@ -142,6 +179,10 @@ export default function AdminAnalytics() {
     const days: any[] = data.by_weekday ?? [];
     const hotDay = [...days].sort((a, b) => b.revenue - a.revenue)[0];
     if (hotDay && hotDay.revenue > 0) out.push({ kind: 'info', text: `Best day of the week: ${DAYS[hotDay.d]}.` });
+    const mp = [...(data.top_products ?? [])].sort((a: any, b: any) => b.orders - a.orders)[0];
+    if (mp) out.push({ kind: 'info', text: `Most bought product: ${mp.name} (${mp.orders} purchases, ${naira(mp.profit)} profit).` });
+    const mc = [...(data.top_customers ?? [])].sort((a: any, b: any) => b.orders - a.orders)[0];
+    if (mc) out.push({ kind: 'info', text: `Customer who bought most often: ${mc.email} (${mc.orders} purchases, ${naira(mc.spent)}).` });
     const top = (data.top_customers ?? [])[0];
     if (top && k.revenue > 0 && pct(top.spent, k.revenue) >= 40 && k.buyers > 1) out.push({ kind: 'warn', text: `One customer (${top.email}) is ${pct(top.spent, k.revenue)}% of your sales. Losing them would hurt.` });
     for (const a of (data.sms_apps ?? []) as any[]) if (a.placed >= 5 && pct(a.done, a.placed) < 60) out.push({ kind: 'warn', text: `${a.name} numbers: only ${pct(a.done, a.placed)}% of ${a.placed} orders got a code. Consider hiding it or lowering the price.` });
@@ -159,8 +200,12 @@ export default function AdminAnalytics() {
       ...series.map((s) => [s.d, s.revenue / 100, s.cost / 100, (s.revenue - s.cost) / 100, s.orders]),
     ]);
     downloadCsv('profit-by-product.csv', [
-      ['Product', 'Orders', 'Sales (NGN)', 'Cost (NGN)', 'Profit (NGN)'],
-      ...(data.top_products ?? []).map((p: any) => [p.name, p.orders, p.revenue / 100, p.cost / 100, p.profit / 100]),
+      ['Product', 'Purchases', 'Units', 'Sales (NGN)', 'Cost (NGN)', 'Profit (NGN)'],
+      ...(data.top_products ?? []).map((p: any) => [p.name, p.orders, p.units, p.revenue / 100, p.cost / 100, p.profit / 100]),
+    ]);
+    downloadCsv('top-customers.csv', [
+      ['Customer', 'Purchases', 'Units', 'Spent (NGN)', 'Profit (NGN)', 'Last purchase'],
+      ...(data.top_customers ?? []).map((c: any) => [c.email, c.orders, c.units, c.spent / 100, c.profit / 100, c.last_at ?? '']),
     ]);
   }
 
@@ -253,11 +298,11 @@ export default function AdminAnalytics() {
               <Table head={['Kind', 'Orders', 'Sales', 'Profit']} empty="No data."
                 rows={(data.by_type ?? []).map((t: any) => [({ supplier: 'Supplier products', stock: 'Your own stock', manual: 'Made to order', sms: 'Virtual numbers' } as Record<string, string>)[t.type] ?? t.type, t.orders, naira(t.revenue), money(t.revenue - t.cost)])} />
             </div>
-            <div className="panel stack-s">
-              <h2>Best earners</h2>
-              <Table head={['Product', 'Orders', 'Sales', 'Profit']} empty="No sales yet."
-                rows={(data.top_products ?? []).map((p: any) => [p.name, p.orders, naira(p.revenue), money(p.profit)])} />
-            </div>
+          </div>
+
+          <div className="cols">
+            <Ranking title="Products people buy most" rows={data.top_products ?? []} nameKey="name" salesKey="revenue" totalSales={k.revenue} showUnits />
+            <Ranking title="Customers who buy most" rows={data.top_customers ?? []} nameKey="email" salesKey="spent" totalSales={k.revenue} showUnits />
           </div>
 
           <div className="panel stack-s">
@@ -272,11 +317,6 @@ export default function AdminAnalytics() {
           </div>
 
           <div className="cols">
-            <div className="panel stack-s">
-              <h2>Best customers</h2>
-              <Table head={['Customer', 'Orders', 'Spent', 'Profit']} empty="No sales yet."
-                rows={(data.top_customers ?? []).map((c: any) => [c.email, c.orders, naira(c.spent), money(c.profit)])} />
-            </div>
             <div className="panel stack-s">
               <h2>Busy days</h2>
               {(data.by_weekday ?? []).map((d: any) => (
