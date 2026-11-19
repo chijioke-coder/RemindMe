@@ -13,6 +13,7 @@ import Account from './pages/Account';
 import OrderDetail from './pages/OrderDetail';
 import Numbers from './pages/Numbers';
 import AdminNumbers from './admin/AdminNumbers';
+import AdminAnalytics from './admin/AdminAnalytics';
 import Referrals from './pages/Referrals';
 import AdminLayout from './admin/AdminLayout';
 import Overview from './admin/Overview';
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
         <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
           <Route index element={<Overview />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="orders" element={<AdminOrders />} />
