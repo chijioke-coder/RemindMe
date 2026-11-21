@@ -79,7 +79,7 @@ function Bars({ points, bucket, two }: { points: { d: string; a: number; b?: num
         return (
           <g key={p.d}>
             <title>{`${labelFor(p.d, bucket)}: ${naira(p.a)}${two ? ` sales, ${naira(p.b ?? 0)} cost` : ''}`}</title>
-            {two ? <>{bar(p.a, cx - bw - 0.5, 'var(--teal)', 'a')}{bar(p.b ?? 0, cx + 0.5, 'var(--gold)', 'b')}</>
+            {two ? <>{bar(p.a, cx - bw - 0.5, 'var(--teal)', 'a')}{bar(p.b ?? 0, cx + 0.5, 'var(--accent)', 'b')}</>
               : bar(p.a, cx - bw / 2, p.a >= 0 ? 'var(--teal)' : 'var(--brick)', 'a')}
             {i % step === 0 && <text x={cx} y={H - 6} textAnchor="middle" fontSize="10" fill="var(--mute)">{labelFor(p.d, bucket)}</text>}
           </g>
@@ -251,7 +251,7 @@ export default function AdminAnalytics() {
             <button className="btn sm ghost" disabled={!data} onClick={exportCsv}>Download CSV</button>
           </div>
         </div>
-        {data && <p className="muted small">{new Date(data.from).toLocaleDateString('en-NG', { dateStyle: 'medium' })} to {new Date(new Date(data.to).getTime() - 1000).toLocaleDateString('en-NG', { dateStyle: 'medium' })}. Profit = what customers paid minus what the supplier charged you, on completed orders. Refunded orders are not counted as sales.</p>}
+        {data && <p className="muted small">{new Date(data.from).toLocaleDateString('en-NG', { dateStyle: 'medium' })} to {new Date(new Date(data.to).getTime() - 1000).toLocaleDateString('en-NG', { dateStyle: 'medium' })}. Profit = what customers paid minus what the supplier charged you, on completed orders. Your own products count as 100% profit. Refunded orders are not counted as sales.</p>}
       </div>
 
       {err && <div className="notice bad">{err}</div>}
@@ -289,14 +289,14 @@ export default function AdminAnalytics() {
           <div className="panel stack-s">
             <h2>Sales and cost</h2>
             <Bars two bucket={data.bucket} points={series.map((s) => ({ d: s.d, a: s.revenue, b: s.cost }))} />
-            <p className="muted small"><b style={{ color: 'var(--teal-d)' }}>■</b> Sales &nbsp; <b style={{ color: 'var(--gold)' }}>■</b> Cost</p>
+            <p className="muted small"><b style={{ color: 'var(--teal-d)' }}>■</b> Sales &nbsp; <b style={{ color: 'var(--accent)' }}>■</b> Cost</p>
           </div>
 
           <div className="cols">
             <div className="panel stack-s">
               <h2>By kind of product</h2>
               <Table head={['Kind', 'Orders', 'Sales', 'Profit']} empty="No data."
-                rows={(data.by_type ?? []).map((t: any) => [({ supplier: 'Supplier products', stock: 'Your own stock', manual: 'Made to order', sms: 'Virtual numbers' } as Record<string, string>)[t.type] ?? t.type, t.orders, naira(t.revenue), money(t.revenue - t.cost)])} />
+                rows={(data.by_type ?? []).map((t: any) => [({ own: 'Your own products (all profit)', supplier: 'Supplier products', sms: 'Virtual numbers' } as Record<string, string>)[t.type] ?? t.type, t.orders, naira(t.revenue), money(t.revenue - t.cost)])} />
             </div>
           </div>
 
